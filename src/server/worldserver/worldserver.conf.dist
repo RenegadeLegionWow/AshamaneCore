@@ -40,6 +40,7 @@
 #    CURRENCIES SETTINGS
 #    PACKET SPOOF PROTECTION SETTINGS
 #    METRIC SETTINGS
+#	 DARK-iCE MODS
 #
 ###################################################################################################
 
@@ -673,7 +674,8 @@ DeclinedNames = 0
 #    Expansion
 #        Description: Allow server to use content from expansions. Checks for expansion-related
 #                     map files, client compatibility and class/race character creation.
-#        Default:     6 - (Expansion 6)
+#        Default:	  7 - (Expansion 7)
+#					  6 - (Expansion 6)
 #                     5 - (Expansion 5)
 #                     4 - (Expansion 4)
 #                     3 - (Expansion 3)
@@ -681,7 +683,7 @@ DeclinedNames = 0
 #                     1 - (Expansion 1)
 #                     0 - (Disabled, Ignore and disable expansion content (maps, races, classes)
 
-Expansion = 6
+Expansion = 7
 
 #
 #    MinPlayerName
@@ -4112,3 +4114,65 @@ Metric.OverallStatusInterval = 1
 
 #
 ###################################################################################################
+#Dark-iCE Mods
+###################################################################################################
+#
+#     Solocraft.Enable
+#        Description: Solocraft is a script to increase players and bots stats in raids, 
+#		 based on group size. It feels a little Hacky, but raids is unfair hard with playerbots.
+#        Default:     0 (disabled)
+#                     1 (enabled)
+
+Solocraft.Enable = 1
+
+#
+#     Login.BoA
+#        Description: New players get some starting equipment.
+#        Default:     0 (disabled)
+#                     1 (enabled)
+
+Login.BoA = 1
+
+#
+#     Congrats.Level
+#        Description: Server gives money for players on every 10 level.
+#        Default:     0 (disabled)
+#                     1 (enabled)
+
+Congrats.Level = 1
+
+#
+#     Time Is Money Friend
+#         Gives money for players who is online after every X minutes.
+#
+#     Default:  TimeIsMoneyFriend.Interval = 3600000 (1 hour) [0 - disabled]
+#               TimeIsMoneyFriend.Money    = 1000 (10 silver)
+
+TimeIsMoneyFriend.Interval = 3600000
+TimeIsMoneyFriend.Money    = 1000
+
+#
+#     Login.Announcer.Enable
+#        Description: Announce every player and bots login
+#        Default:     0 (disabled)
+#                     1 (enabled)
+
+Login.Announcer.Enable = 1
+
+#
+#    Double XP Weekend
+#        Description: Enables or disables the Double XP Weekend Script
+#
+#    DoubleXP.Enable
+#        Default:     1 (enabled)
+#                     0 (disabled)
+
+DoubleXP.Enable = 1
+
+#
+#     Boss.Announcer.Enable
+#        Description: System announce who killed a world boss in global.
+#        Default:     0 (disabled)
+#                     1 (enabled)
+
+Boss.Announcer.Enable = 1

@@ -1,3 +1,15 @@
+# ![logo](https://c10.patreonusercontent.com/3/eyJ3IjoxNjAwfQ%3D%3D/patreon-posts/pN11oD_JT1i7n5Bb2YfU_beobbtmfnaVgrAWm29o5SUF9Rc95FAMFECFrBzdmqbi.png?token-time=2145916800&token-hash=HAOcQWtWqan0_PR4Ix6hlFBmXreGdh1l9u7a7Ph1Ca8%3D) Dark-iCE
+
+Dark-iCE is a World of Warcraft private server project *created for learning purposes*  based on AshamaneCore (Support version 7.3.5.26365) with our own additions and custom content
+Any and all questions, concerns and/or issues should be addressed towards Our project and our discord community and NOT to 
+AshamaneCore developers themseleves as they do not directly support Dark-iCE and may not be responsible for ALL
+changes in our release cores.. leave them alone so they can do what they do best and we can continue to provide
+you with the best they have to offer. 
+
+Dark-iCE is SOLELY maintained by 3raZar3 we have no other developers at present however if you think you have the chops and are looking to become part of the team you are welcome to join the Discord server and request to become staff :)
+
+Discord : https://discord.gg/Fn4VM82
+
 # AshamaneCore
 
 [![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/AshamaneProject/AshamaneCore.svg)](https://isitmaintained.com/project/AshamaneProject/AshamaneCore "Average time to resolve an issue") [![Percentage of issues still open](https://isitmaintained.com/badge/open/AshamaneProject/AshamaneCore.svg)](https://isitmaintained.com/project/AshamaneProject/AshamaneCore "Percentage of issues still open")
@@ -27,10 +39,18 @@ with Ashamane Database (ADB) :
 - All Draenor zones spawns
 - All Legion zones spawns (including Class Halls)
 
-It is completely open source; community involvement is highly encouraged.
-
 If you wish to contribute ideas or code please visit our site linked below or
 make pull requests to our [Github repository](https://github.com/AshamaneProject/AshamaneCore/pulls).
+
+## Dark-iCE Mods
+
+- Time is Money Friend
+- Congrats on Level
+- Login BOA (Heirlooms for Starting Characters)
+- Solocraft
+- Announce Login
+- Boss Announcer
+- Double XP Weekend
 
 ## Requirements
 

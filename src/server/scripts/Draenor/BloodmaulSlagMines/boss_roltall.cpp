@@ -1,19 +1,20 @@
 /*
-* Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "AreaTrigger.h"
 #include "AreaTriggerAI.h"
@@ -126,14 +127,14 @@ namespace Instances { namespace Bloodmaul
 
                     me->AddUnitState(UnitState::UNIT_STATE_ROOT);
                     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_REMOVE_CLIENT_CONTROL);
-                    //me->RemoveAllAreasTrigger();
+                    //me->RemoveAllAreaTriggers();
                 }
 
                 void JustDied(Unit*) override
                 {
                     _JustDied();
 
-                    //me->RemoveAllAreasTrigger();
+                    //me->RemoveAllAreaTriggers();
 
                     if (m_Instance != nullptr)
                         m_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_DISENGAGE, me);
@@ -325,9 +326,9 @@ namespace Instances { namespace Bloodmaul
 
                 G3D::Vector3 GetBurningSlagSpawnPos()
                 {
-                    float l_PosX = frand(s_MinPositionX, s_MaxPositionX);
-                    float l_PosY = frand(s_MinPositionY, s_MaxPositionY);
-                    return G3D::Vector3(l_PosX, l_PosY, s_PositionZ);
+                    float posX = frand(s_MinPositionX, s_MaxPositionX);
+                    float posY = frand(s_MinPositionY, s_MaxPositionY);
+                    return G3D::Vector3(posX, posY, s_PositionZ);
                 }
             };
 

@@ -1,19 +1,20 @@
 /*
-* Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "AreaTrigger.h"
 #include "AreaTriggerAI.h"
@@ -322,14 +323,14 @@ public:
                     if (l_ListPlayers.empty())
                         return;
 
-                    Position l_Position = me->GetPosition();
+                    Position position = me->GetPosition();
 
                     for (auto itr : l_ListPlayers)
                     {
                         if (itr->IsWithinDist(me, 25.0f, true))
                         {
                             if (itr->IsAlive() && !itr->HasMovementForce(me->GetGUID()))
-                                itr->ApplyMovementForce(me->GetGUID(), 3.0f, l_Position);
+                                itr->ApplyMovementForce(me->GetGUID(), 3.0f, position);
                             else if (!itr->IsAlive() && itr->HasMovementForce(me->GetGUID()))
                                 itr->RemoveMovementForce(me->GetGUID());
                         }

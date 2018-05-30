@@ -1,19 +1,20 @@
 /*
-* Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "shadowmoon_burial_grounds.h"
 #include "GameObject.h"
@@ -74,8 +75,8 @@ enum eBoneMawActions
     ActionInhaleDeactivate = 1,
 };
 
-Position const l_PositionBoneMaw = { 1851.256f, -558.721f, 199.027f, 1.991077f };
-Position const l_PositionAdds[2] =
+Position const positionBoneMaw = { 1851.256f, -558.721f, 199.027f, 1.991077f };
+Position const positionAdds[2] =
 {
     { 1801.369f, -521.248f, 196.795f, 0.030723f },
     { 1860.075f, -497.532f, 196.796f, 4.054334f },
@@ -233,7 +234,7 @@ public:
                     if (l_ListPlayers.empty())
                         return;
 
-                    Position l_Position = me->GetPosition();
+                    Position position = me->GetPosition();
 
                     for (auto itr : l_ListPlayers)
                     {            
@@ -247,7 +248,7 @@ public:
                             if (itr->IsWithinDist(l_BonemawMouth, 100.0f, true))
                             {
                                 if (itr->IsAlive() && !itr->HasMovementForce(l_BonemawMouth->GetGUID()))
-                                    itr->ApplyMovementForce(l_BonemawMouth->GetGUID(), 3.0f, l_Position);
+                                    itr->ApplyMovementForce(l_BonemawMouth->GetGUID(), 3.0f, position);
                                 else if (!itr->IsAlive() && itr->HasMovementForce(l_BonemawMouth->GetGUID()))
                                     itr->RemoveMovementForce(l_BonemawMouth->GetGUID());
                             }
@@ -320,7 +321,7 @@ public:
 
                     for (int i = 0; i < 2; i++)
                     {
-                        me->SummonCreature(eBoneMawCreatures::CreatureCarrionWorm, l_PositionAdds[i], TEMPSUMMON_MANUAL_DESPAWN);
+                        me->SummonCreature(eBoneMawCreatures::CreatureCarrionWorm, positionAdds[i], TEMPSUMMON_MANUAL_DESPAWN);
                     }
 
                     events.ScheduleEvent(eBoneMawEvents::EventCancelSubmerge, 3 * TimeConstants::IN_MILLISECONDS);
@@ -687,7 +688,7 @@ public:
             }
         }
 
-        void OnRemove(AuraEffect const* /*p_AurEff*/, AuraEffectHandleModes /*p_Mode*/)
+        void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
         {
             if (Unit* caster = GetCaster())
             {

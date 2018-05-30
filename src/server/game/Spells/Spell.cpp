@@ -580,7 +580,7 @@ m_spellValue(new SpellValue(caster->GetMap()->GetDifficultyID(), m_spellInfo))
     m_spellState = SPELL_STATE_NULL;
     _triggeredCastFlags = triggerFlags;
     if (info->HasAttribute(SPELL_ATTR4_CAN_CAST_WHILE_CASTING))
-        _triggeredCastFlags = TriggerCastFlags(uint32(_triggeredCastFlags) | TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_CAST_DIRECTLY);
+        _triggeredCastFlags = TriggerCastFlags(uint32(_triggeredCastFlags) | TRIGGERED_CAN_CAST_WHILE_CASTING_MASK);
 
     m_CastItem = NULL;
     m_castItemGUID.Clear();
@@ -2471,6 +2471,10 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         }
     }
 
+    if (missInfo != SPELL_MISS_NONE)
+        if (m_caster->IsCreature() && m_caster->IsAIEnabled)
+            m_caster->ToCreature()->AI()->SpellMissTarget(unit, m_spellInfo, missInfo);
+
     PrepareScriptHitHandlers();
     CallScriptBeforeHitHandlers(missInfo);
 
@@ -3458,6 +3462,9 @@ void Spell::cast(bool skipCheck)
 
     CallScriptAfterCastHandlers();
 
+    if (m_caster->IsCreature() && m_caster->IsAIEnabled)
+        m_caster->ToCreature()->AI()->OnSpellCasted(m_spellInfo);
+
     if (const std::vector<int32> *spell_triggered = sSpellMgr->GetSpellLinked(m_spellInfo->Id))
     {
         for (std::vector<int32>::const_iterator i = spell_triggered->begin(); i != spell_triggered->end(); ++i)
@@ -3803,6 +3810,9 @@ void Spell::finish(bool ok)
     if (m_spellState == SPELL_STATE_FINISHED)
         return;
     m_spellState = SPELL_STATE_FINISHED;
+
+    if (m_caster->IsCreature() && m_caster->IsAIEnabled)
+        m_caster->ToCreature()->AI()->OnSpellFinished(m_spellInfo);
 
     if (m_spellInfo->IsChanneled())
         m_caster->UpdateInterruptMask();
@@ -7340,7 +7350,7 @@ void Spell::DoAllEffectOnLaunchTarget(TargetInfo& targetInfo, float* multiplier)
     if (Player* modOwner = m_caster->GetSpellModOwner())
         modOwner->SetSpellModTakingSpell(this, true);
 
-    targetInfo.crit = m_caster->IsSpellCrit(unit, m_spellInfo, m_spellSchoolMask, m_attackType);
+    targetInfo.crit = m_caster->IsSpellCrit(unit, this, nullptr, m_spellSchoolMask, m_attackType);
 
     if (Player* modOwner = m_caster->GetSpellModOwner())
         modOwner->SetSpellModTakingSpell(this, false);
@@ -7720,6 +7730,19 @@ void Spell::CallScriptDestinationTargetSelectHandlers(SpellDestination& target, 
         for (; hookItr != hookItrEnd; ++hookItr)
             if (hookItr->IsEffectAffected(m_spellInfo, effIndex) && targetType.GetTarget() == hookItr->GetTarget())
                 hookItr->Call(*scritr, target);
+
+        (*scritr)->_FinishScriptCall();
+    }
+}
+
+void Spell::CallScriptCalcCritChanceHandlers(Unit* victim, float& chance)
+{
+    for (auto scritr = m_loadedScripts.begin(); scritr != m_loadedScripts.end(); ++scritr)
+    {
+        (*scritr)->_PrepareScriptCall(SPELL_SCRIPT_HOOK_CALC_CRIT_CHANCE);
+        auto hookItrEnd = (*scritr)->OnCalcCritChance.end(), hookItr = (*scritr)->OnCalcCritChance.begin();
+        for (; hookItr != hookItrEnd; ++hookItr)
+            (*hookItr).Call(*scritr, victim, chance);
 
         (*scritr)->_FinishScriptCall();
     }

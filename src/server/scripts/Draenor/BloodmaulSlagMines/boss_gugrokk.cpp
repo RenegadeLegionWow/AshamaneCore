@@ -1,19 +1,20 @@
 /*
-* Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
@@ -99,7 +100,7 @@ namespace Instances { namespace Bloodmaul
                     if (m_Instance != nullptr)
                         m_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_DISENGAGE, me);
 
-                    //me->RemoveAllAreasTrigger();
+                    //me->RemoveAllAreaTriggers();
 
                     SetEquipmentSlots(false, eEquips::MainEquipID);
                 }
@@ -110,7 +111,7 @@ namespace Instances { namespace Bloodmaul
 
                     summons.DespawnAll();
 
-                    //me->RemoveAllAreasTrigger();
+                    //me->RemoveAllAreaTriggers();
 
                     if (m_Instance != nullptr)
                         m_Instance->SendEncounterUnit(EncounterFrameType::ENCOUNTER_FRAME_DISENGAGE, me);
@@ -135,9 +136,9 @@ namespace Instances { namespace Bloodmaul
                     m_Events.ScheduleEvent(eEvents::EventSummonUnstableSlag, 20 * TimeConstants::IN_MILLISECONDS);
                 }
 
-                void KilledUnit(Unit* p_Killed) override
+                void KilledUnit(Unit* killed) override
                 {
-                    if (p_Killed->IsPlayer())
+                    if (killed->IsPlayer())
                         Talk(eTalks::TalkSlay);
                 }
 
@@ -208,9 +209,9 @@ namespace Instances { namespace Bloodmaul
 
                             for (Player* player : playerList)
                             {
-                                Position l_Pos = player->GetPosition();
+                                Position pos = player->GetPosition();
 
-                                if (Creature* l_MagmaEruption = me->SummonCreature(eCreatures::NpcMagmaEruption, l_Pos))
+                                if (Creature* l_MagmaEruption = me->SummonCreature(eCreatures::NpcMagmaEruption, pos))
                                     l_MagmaEruption->CastSpell(l_MagmaEruption, eSpells::SpellMagmaEruptionVisual, true);
                             }
 

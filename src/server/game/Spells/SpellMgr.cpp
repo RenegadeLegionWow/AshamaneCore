@@ -463,7 +463,7 @@ bool SpellMgr::CanSpellTriggerProcOnEvent(SpellProcEntry const& procEntry, ProcE
     {
         if (Spell const* spell = eventInfo.GetProcSpell())
         {
-            if (spell->IsTriggered())
+            if (spell->IsTriggered() && spell->GetTriggeredCastFlags() != TRIGGERED_CAN_CAST_WHILE_CASTING_MASK)
             {
                 SpellInfo const* spellInfo = spell->GetSpellInfo();
                 if (!spellInfo->HasAttribute(SPELL_ATTR3_TRIGGERED_CAN_TRIGGER_PROC_2) &&
@@ -2507,6 +2507,12 @@ void SpellMgr::LoadSpellInfoCorrections()
 {
     uint32 oldMSTime = getMSTime();
 
+    // Ring of Frost
+    ApplySpellFix({ 82691 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->AttributesEx5 &= ~SPELL_ATTR5_SINGLE_TARGET_SPELL; // it is multitarget aoe spell
+    });
+
     ApplySpellFix({
         63026, // Summon Aspirant Test NPC (HACK: Target shouldn't be changed)
         63137  // Summon Valiant Test (HACK: Target shouldn't be changed; summon position should be untied from spell destination)
@@ -3556,6 +3562,12 @@ void SpellMgr::LoadSpellInfoCorrections()
     ApplySpellFix({ 196930 }, [](SpellInfo* spellInfo)
     {
         spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(7); // 10yd
+    });
+
+    // Use already coded spell instead of server-side spell
+    ApplySpellFix({ 203537 }, [](SpellInfo* spellInfo)
+    {
+        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_0))->TriggerSpell = 203044;
     });
 
     SpellInfo* spellInfo = NULL;

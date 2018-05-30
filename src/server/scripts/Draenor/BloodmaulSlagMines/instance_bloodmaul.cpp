@@ -1,19 +1,20 @@
 /*
-* Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "instance_bloodmaul.h"
 #include "GameObject.h"
@@ -258,9 +259,9 @@ namespace Instances
                             {
                                 if (state == EncounterState::NOT_STARTED)
                                 {
-                                    /*for (ObjectGuid l_Guid : m_CapturedMinerGuids)
+                                    /*for (ObjectGuid guid : m_CapturedMinerGuids)
                                     {
-                                        if (Creature* l_CapturedMiner = ObjectAccessor::GetCreature(l_Guid))
+                                        if (Creature* l_CapturedMiner = ObjectAccessor::GetCreature(guid))
                                             l_CapturedMiner->DespawnOrUnsummon();
                                     }*/
 
@@ -269,9 +270,9 @@ namespace Instances
                                 }
                                 else if (state == EncounterState::DONE)
                                 {
-                                    /*for (ObjectGuid l_Guid : m_CapturedMinerGuids)
+                                    /*for (ObjectGuid guid : m_CapturedMinerGuids)
                                     {
-                                        if (Creature* l_CapturedMiner = ObjectAccessor::GetCreature(l_Guid))
+                                        if (Creature* l_CapturedMiner = ObjectAccessor::GetCreature(guid))
                                         {
                                             //if (l_CapturedMiner->AI())
                                             //    l_CapturedMiner->AI()->Talk(uint32(Talks::CapturedMinerReleased));
@@ -385,9 +386,9 @@ namespace Instances
                             case uint32(Data::RaiseTheMinersChangeTarget):
                                 if (Player* l_Plr = ObjectAccessor::FindPlayer(data))
                                 {
-                                    /*for (auto l_Guid : m_CapturedMinerGuids)
+                                    /*for (auto guid : m_CapturedMinerGuids)
                                     {
-                                        if (Creature* summon = ObjectAccessor::GetCreature(l_Guid))
+                                        if (Creature* summon = ObjectAccessor::GetCreature(guid))
                                             summon->GetMotionMaster()->MoveChase(l_Plr);
                                     }*/
                                 }
@@ -458,9 +459,9 @@ namespace Instances
                         if (m_CheckZPosTimer <= diff)
                         {
                             Map::PlayerList const& playerList = instance->GetPlayers();
-                            for (Map::PlayerList::const_iterator l_Iter = playerList.begin(); l_Iter != playerList.end(); ++l_Iter)
+                            for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
                             {
-                                if (Player* player = l_Iter->GetSource())
+                                if (Player* player = itr->GetSource())
                                 {
                                     if (player->GetPositionZ() <= 150.0f)
                                         player->Kill(player);

@@ -12,8 +12,6 @@ Discord : https://discord.gg/Fn4VM82
 
 # AshamaneCore
 
-[![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/AshamaneProject/AshamaneCore.svg)](https://isitmaintained.com/project/AshamaneProject/AshamaneCore "Average time to resolve an issue") [![Percentage of issues still open](https://isitmaintained.com/badge/open/AshamaneProject/AshamaneCore.svg)](https://isitmaintained.com/project/AshamaneProject/AshamaneCore "Percentage of issues still open")
-
 ## Build Status
 
 [![master Build Status](https://travis-ci.org/AshamaneProject/AshamaneCore.svg?branch=master)](https://travis-ci.org/AshamaneProject/AshamaneCore) 
@@ -27,10 +25,22 @@ It is fully based on *TrinityCore*, with upgrades like :
 
 - Class Hall Basics (WIP)
 - World Quests
-- Personal Spawns (visible by summoner only)
 - Legion scripts (WIP)
-- Wod Scripts (full blizzlike Jungle of Tanaan intro)
-- Pandaria Scripts (all dungeons & world bosses)
+    - BlackRookHold
+    - Darkheart Thicket
+    - Mardum (DH start zone)
+    - Emerald Nightmare (1/7)
+    - Tomb of Sargeras (1/9)
+- Wod Scripts (WIP)
+    - full blizzlike Jungle of Tanaan intro
+    - Garrison pre-quests (for both Horde & Alliance)
+    - Garrison building activation
+    - Bloodmaul Slagmines
+    - Everbloom
+    - Shadowmoon Burial Grounds
+    - Highmaul
+- Pandaria Scripts
+    - all dungeons & world bosses
 
 with Ashamane Database (ADB) :
 
@@ -67,7 +77,7 @@ Windows, Linux and macOS.
 
 ## Reporting issues
 
-Issues can be reported via the [Github issue tracker](https://github.com/AshamaneProject/AshamaneCore/labels/Branch-master).
+Issues can be reported via our [Mantis issue tracker](https://bt.ashamane.com).
 
 Please take the time to review existing issues before submitting your own to
 prevent duplicates.
@@ -92,6 +102,7 @@ Read file [THANKS](THANKS).
 
 ## Links
 
-* [Website](https://www.trinitycore.org)
+* [Website](https://www.ashamane.com)
 * [Wiki](https://www.trinitycore.info)
-* [Forums](https://community.trinitycore.org)
+* [Forums](http://forum.ashamane.com/)
+* [TrinityCore](https://www.trinitycore.org/)

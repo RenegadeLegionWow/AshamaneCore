@@ -1,19 +1,20 @@
 /*
-* Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2 of the License, or (at your
-* option) any later version.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "AreaTrigger.h"
 #include "AreaTriggerAI.h"
@@ -299,10 +300,10 @@ public:
         {
             for (uint8 l_i = 0; l_i <= 30; l_i++)
             {
-                Position l_Position = me->GetRandomNearPosition(40.0f);
-                l_Position.m_positionZ = frand(261.391f, 284.058f);
+                Position position = me->GetRandomNearPosition(40.0f);
+                position.m_positionZ = frand(261.391f, 284.058f);
 
-                me->SummonCreature(eShadowmoonBurialGroundsCreatures::CreatureDefliedSpirit01, l_Position, TempSummonType::TEMPSUMMON_MANUAL_DESPAWN);
+                me->SummonCreature(eShadowmoonBurialGroundsCreatures::CreatureDefliedSpirit01, position, TempSummonType::TEMPSUMMON_MANUAL_DESPAWN);
             }
         }
 
@@ -585,12 +586,12 @@ public:
             me->SetDisableGravity(true);
             me->SetCanFly(true);
 
-            Position l_Position = g_PositionDefiledSpiritsMovement[m_MovementIndentifier];
-            l_Position.m_positionX += frand(2.0f, 8.0f);
-            l_Position.m_positionY += frand(2.0f, 10.0f);
-            l_Position.m_positionZ += frand(2.0f, 8.0f);
+            Position position = g_PositionDefiledSpiritsMovement[m_MovementIndentifier];
+            position.m_positionX += frand(2.0f, 8.0f);
+            position.m_positionY += frand(2.0f, 10.0f);
+            position.m_positionZ += frand(2.0f, 8.0f);
 
-            me->GetMotionMaster()->MoveTakeoff(m_MovementIndentifier, l_Position);
+            me->GetMotionMaster()->MoveTakeoff(m_MovementIndentifier, position);
         }
 
         void DoAction(int32 const action) override
@@ -630,11 +631,11 @@ public:
                 if (m_MovementIndentifier >= 8)
                     m_MovementIndentifier = 0;
 
-                Position l_Position = g_PositionDefiledSpiritsMovement[m_MovementIndentifier];
-                l_Position.m_positionX += frand(2.0f, 8.0f);
-                l_Position.m_positionY += frand(2.0f, 10.0f);
-                l_Position.m_positionZ += frand(2.0f, 8.0f);
-                me->GetMotionMaster()->MoveTakeoff(m_MovementIndentifier, l_Position);
+                Position position = g_PositionDefiledSpiritsMovement[m_MovementIndentifier];
+                position.m_positionX += frand(2.0f, 8.0f);
+                position.m_positionY += frand(2.0f, 10.0f);
+                position.m_positionZ += frand(2.0f, 8.0f);
+                me->GetMotionMaster()->MoveTakeoff(m_MovementIndentifier, position);
             }
         }
 

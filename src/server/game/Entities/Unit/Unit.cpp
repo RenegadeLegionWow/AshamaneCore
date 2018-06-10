@@ -740,7 +740,10 @@ uint32 Unit::DealDamage(Unit* victim, uint32 damage, CleanDamage const* cleanDam
     }
 
     if (IsAIEnabled)
+    {
         GetAI()->DamageDealt(victim, damage, damagetype);
+        GetAI()->DamageDealt(victim, damage, damagetype, spellProto);
+    }
 
     // Hook for OnDamage Event
     sScriptMgr->OnDamage(this, victim, damage);
@@ -9764,12 +9767,12 @@ void Unit::SetMaxPower(Powers power, int32 val)
 
 void Unit::CheckPowerProc(Powers power, int32 oldVal, int32 newVal)
 {
-    AuraEffectList effects       = GetAuraEffectsByType(SPELL_AURA_TRIGGER_SPELL_ON_POWER_PCT);
-    AuraEffectList effectsAmount = GetAuraEffectsByType(SPELL_AURA_TRIGGER_SPELL_ON_POWER_AMOUNT);
+    CheckPowerProc(power, oldVal, newVal, GetAuraEffectsByType(SPELL_AURA_TRIGGER_SPELL_ON_POWER_PCT));
+    CheckPowerProc(power, oldVal, newVal, GetAuraEffectsByType(SPELL_AURA_TRIGGER_SPELL_ON_POWER_AMOUNT));
+}
 
-    if (effectsAmount.size() != 0)
-        effects.merge(effectsAmount);
-
+void Unit::CheckPowerProc(Powers power, int32 oldVal, int32 newVal, AuraEffectList effects)
+{
     for (AuraEffect* effect : effects)
     {
         if (effect->GetMiscValue() == power)

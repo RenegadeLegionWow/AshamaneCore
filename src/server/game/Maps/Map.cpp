@@ -3540,6 +3540,8 @@ void InstanceMap::RemovePlayerFromMap(Player* player, bool remove)
         m_unloadTimer = m_unloadWhenEmpty ? MIN_UNLOAD_DELAY : std::max(sWorld->getIntConfig(CONFIG_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
     if (i_scenario)
         i_scenario->OnPlayerExit(player);
+    if (i_data)
+        i_data->OnPlayerExit(player);
     Map::RemovePlayerFromMap(player, remove);
     // for normal instances schedule the reset after all players have left
     SetResetSchedule(true);
@@ -3784,7 +3786,7 @@ bool Map::IsHeroic() const
 
 bool Map::IsMythic() const
 {
-    return i_spawnMode == DIFFICULTY_MYTHIC || i_spawnMode == DIFFICULTY_MYTHIC_RAID;
+    return i_spawnMode == DIFFICULTY_MYTHIC || i_spawnMode == DIFFICULTY_MYTHIC_KEYSTONE || i_spawnMode == DIFFICULTY_MYTHIC_RAID;
 }
 
 bool Map::Is25ManRaid() const
@@ -3920,6 +3922,25 @@ void BattlegroundMap::RemoveAllPlayers()
             if (Player* player = itr->GetSource())
                 if (!player->IsBeingTeleportedFar())
                     player->TeleportTo(player->GetBattlegroundEntryPoint());
+}
+
+GameObject* Map::SummonGameObject(uint32 entry, Position const& pos, QuaternionData const& rot, uint32 respawnTime)
+{
+    GameObjectTemplate const* goinfo = sObjectMgr->GetGameObjectTemplate(entry);
+    if (!goinfo)
+    {
+        TC_LOG_ERROR("sql.sql", "Gameobject template %u not found in database!", entry);
+        return nullptr;
+    }
+
+    GameObject* go = GameObject::CreateGameObject(entry, this, pos, rot, 255, GO_STATE_READY);
+    if (!go)
+        return nullptr;
+
+    go->SetRespawnTime(respawnTime);
+    go->SetSpawnedByDefault(false);
+    AddToMap(go);
+    return go;
 }
 
 AreaTrigger* Map::GetAreaTrigger(ObjectGuid const& guid)

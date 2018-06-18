@@ -824,6 +824,9 @@ struct CriteriaEntry
         // CRITERIA_TYPE_FISH_IN_GAMEOBJECT     = 72
         uint32 GameObjectID;
 
+        //CRITERIA_TYPE_SEND_EVENT_SCENARIO     = 92
+        uint32 ScenarioEventID;
+
         // CRITERIA_TYPE_HIGHEST_POWER          = 96
         uint32 PowerType;
 
@@ -1996,6 +1999,15 @@ struct MapEntry
     bool IsDynamicDifficultyMap() const { return (Flags[0] & MAP_FLAG_CAN_TOGGLE_DIFFICULTY) != 0; }
     bool IsGarrison() const { return (Flags[0] & MAP_FLAG_GARRISON) != 0; }
     bool IsWorldPvPMap() const { return (Flags[1] & MAP_FLAG2_WORLD_PVP) != 0; }
+};
+
+struct MapChallengeModeEntry
+{
+    LocalizedString* Name;
+    uint32 ID;
+    uint16 MapID;
+    int16 CriteriaCount[3];
+    uint8 Flags;
 };
 
 struct MapDifficultyEntry

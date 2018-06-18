@@ -31,7 +31,7 @@ DoorData const doorData[] =
 
 struct instance_emerald_nightmare : public InstanceScript
 {
-    instance_emerald_nightmare(Map* map) : InstanceScript(map) { }
+    instance_emerald_nightmare(InstanceMap* map) : InstanceScript(map) { }
 
     void Initialize() override
     {
@@ -44,10 +44,9 @@ struct instance_emerald_nightmare : public InstanceScript
         InstanceScript::OnCreatureCreate(creature);
 
         if (instance->IsHeroic())
-            creature->SetMaxHealth(creature->GetMaxHealth() * 2.f);
+            creature->SetBaseHealth(creature->GetMaxHealth() * 2.f);
         if (instance->IsMythic())
-            creature->SetMaxHealth(creature->GetMaxHealth() * 1.33f);
-        creature->SetFullHealth();
+            creature->SetBaseHealth(creature->GetMaxHealth() * 1.33f);
     }
 };
 

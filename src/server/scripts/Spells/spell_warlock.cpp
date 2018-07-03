@@ -160,7 +160,8 @@ enum WarlockSpells
     SPELL_WARLOCK_PYROCLASM                         = 123686,
     SPELL_WARLOCK_RAIN_OF_FIRE_DAMAGE               = 42223,
     SPELL_WARLOCK_ROARING_BLAZE                     = 205184,
-    SPELL_WARLOCK_SEED_OF_CORRUPTION_DUMMY          = 86664,
+    SPELL_WARLOCK_SEED_OF_CURRUPTION                = 27243,
+    SPELL_WARLOCK_SEED_OF_CURRUPTION_DAMAGE         = 27285,
     SPELL_WARLOCK_SHADOW_BOLT                       = 686,
     SPELL_WARLOCK_SHADOW_BOLT_SHOULSHARD            = 194192,
     SPELL_WARLOCK_SHADOW_TRANCE                     = 17941,
@@ -217,7 +218,9 @@ enum eGatewaySpells
 {
     PortalVisual = 113900,
     GatewayInteract = 113902,
-    CooldownMarker = 113942
+    CooldownMarker = 113942,
+	TeleportVisualGreen = 236762,
+    TeleportVisualPurple = 236671
 };
 
 enum eGatewayNpc
@@ -813,35 +816,90 @@ class spell_warl_seed_of_corruption : public SpellScript
 {
     PrepareSpellScript(spell_warl_seed_of_corruption);
 
-    void HandleOnHitMainTarget(SpellEffIndex /*effIndex*/)
+    void HandleBeforeCast()
     {
-        _maxTargets = 1;
+        _maxAdditionalTargets = 0;
 
         if (Aura* aura = GetCaster()->GetAura(SPELL_WARLOCK_SOW_THE_SEEDS))
-            _maxTargets += aura->GetSpellEffectInfo(EFFECT_0)->BasePoints;
-
-        _maxTargets *= 2;
+            _maxAdditionalTargets += aura->GetSpellEffectInfo(EFFECT_0)->BasePoints;
     }
 
-    void HandleOnHitTarget(SpellEffIndex effIndex)
+    void CorrectTargets(std::list<WorldObject*>& targets)
     {
-        if (Unit* target = GetHitUnit())
-            if (!GetCaster()->HasAura(SPELL_WARLOCK_SOW_THE_SEEDS) || !_maxTargets)
-                if (target != GetExplTargetUnit())
-                    PreventHitDefaultEffect(effIndex);
+        std::list<WorldObject*> correctedTargets;
+        for (WorldObject* obj : targets)
+        {
+            if (obj == GetExplTargetUnit())
+            {
+                correctedTargets.push_back(obj);
+                continue;
+            }
 
-        if (_maxTargets)
-            --_maxTargets;
+            if (_maxAdditionalTargets)
+            {
+                correctedTargets.push_back(obj);
+                --_maxAdditionalTargets;
+            }
+        }
+
+        targets = correctedTargets;
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_warl_seed_of_corruption::HandleOnHitMainTarget, EFFECT_0, SPELL_EFFECT_DUMMY);
-        OnEffectHitTarget += SpellEffectFn(spell_warl_seed_of_corruption::HandleOnHitTarget, EFFECT_1, SPELL_EFFECT_APPLY_AURA);
-        OnEffectHitTarget += SpellEffectFn(spell_warl_seed_of_corruption::HandleOnHitTarget, EFFECT_2, SPELL_EFFECT_APPLY_AURA);
+        BeforeCast += SpellCastFn(spell_warl_seed_of_corruption::HandleBeforeCast);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_warl_seed_of_corruption::CorrectTargets, EFFECT_1, TARGET_UNIT_DEST_AREA_ENEMY);
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_warl_seed_of_corruption::CorrectTargets, EFFECT_2, TARGET_UNIT_DEST_AREA_ENEMY);
     }
+
 private:
-    uint8 _maxTargets;
+    uint8 _maxAdditionalTargets;
+};
+
+// 27243 - Seed of Corruption
+class aura_warl_seed_of_corruption : public AuraScript
+{
+    PrepareAuraScript(aura_warl_seed_of_corruption);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_WARLOCK_SEED_OF_CURRUPTION_DAMAGE });
+    }
+
+    void HandlePeriodic(AuraEffect const* aurEff)
+    {
+        aurEff->GetBase()->Remove(AURA_REMOVE_BY_EXPIRE);
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(GetTarget()->GetPosition(), SPELL_WARLOCK_SEED_OF_CURRUPTION_DAMAGE, true);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(aura_warl_seed_of_corruption::HandlePeriodic, EFFECT_1, SPELL_AURA_PERIODIC_DAMAGE);
+    }
+};
+
+// 27285 - Seed of Corruption damages
+class spell_warl_seed_of_corruption_damage : public SpellScript
+{
+    PrepareSpellScript(spell_warl_seed_of_corruption_damage);
+
+    void HandleOnHit(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* target = GetHitUnit())
+        {
+            if (Aura* seedOfCorruption = target->GetAura(SPELL_WARLOCK_SEED_OF_CURRUPTION))
+            {
+                seedOfCorruption->Remove();
+                GetCaster()->CastSpell(target->GetPosition(), SPELL_WARLOCK_SEED_OF_CURRUPTION_DAMAGE, true);
+            }
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_warl_seed_of_corruption_damage::HandleOnHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
 };
 
 // -7235 - Shadow Ward
@@ -2276,23 +2334,41 @@ class spell_npc_warl_demonic_gateway_purple : public CreatureScript
 {
 public:
     spell_npc_warl_demonic_gateway_purple() : CreatureScript("spell_npc_warl_demonic_gateway_purple") { }
-
+    enum eNpc
+    {
+        DELAY_TO_INTERACT = 50
+    };
     struct spell_npc_warl_demonic_gateway_purpleAI : public CreatureAI
     {
-        spell_npc_warl_demonic_gateway_purpleAI(Creature* p_Creature) : CreatureAI(p_Creature) { }
+        spell_npc_warl_demonic_gateway_purpleAI(Creature* p_Creature) : CreatureAI(p_Creature) { Init(); }
 
-        void UpdateAI(uint32 /*diff*/) override
+        EventMap m_events;
+        uint32 ready_to_jump;
+
+        void UpdateAI(uint32 diff) override
         {
+            m_events.Update(diff);
+            while (uint32 eventId = m_events.ExecuteEvent())
+            {
+                switch (eventId)
+                {
+                case DELAY_TO_INTERACT:
+                {
+                    ready_to_jump = 1;
+                    me->SetFlag(UNIT_FIELD_INTERACT_SPELLID, eGatewaySpells::GatewayInteract);
+                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_REMOVE_CLIENT_CONTROL);
+                    me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
+                    me->SetReactState(ReactStates::REACT_PASSIVE);
+                    break;
+                }
+                }
+            }
         }
-
-        void JustRespawned() override
+        void Init()
         {
             me->CastSpell(me, eGatewaySpells::PortalVisual, true);
-
-            me->SetFlag(UNIT_FIELD_INTERACT_SPELLID, eGatewaySpells::GatewayInteract);
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_REMOVE_CLIENT_CONTROL);
-            me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-            me->SetReactState(ReactStates::REACT_PASSIVE);
+            ready_to_jump = 0;
+            m_events.ScheduleEvent(DELAY_TO_INTERACT, 500);
         }
 
         void OnSpellClick(Unit* p_Clicker, bool& /*result*/) override
@@ -2344,12 +2420,13 @@ public:
                 // Init dest coordinates
                 float x, y, z;
                 itr->GetPosition(x, y, z);
-
                 float speedXY;
                 float speedZ = 5;
 
                 speedXY = p_Clicker->GetExactDist2d(x, y) * 10.0f / speedZ;
+                p_Clicker->CastSpell(p_Clicker, eGatewaySpells::TeleportVisualPurple, true);
                 p_Clicker->GetMotionMaster()->MoveJump(x, y, z, p_Clicker->GetOrientation(), speedXY, speedZ);
+
                 break;
             }
         }
@@ -2366,24 +2443,41 @@ class spell_npc_warl_demonic_gateway_green : public CreatureScript
 {
 public:
     spell_npc_warl_demonic_gateway_green() : CreatureScript("spell_npc_warl_demonic_gateway_green") { }
-
+    enum eNpc
+    {
+        DELAY_TO_INTERACT = 50
+    };
     struct spell_npc_warl_demonic_gateway_greenAI : public CreatureAI
     {
-        spell_npc_warl_demonic_gateway_greenAI(Creature* p_Creature) : CreatureAI(p_Creature) { }
+        spell_npc_warl_demonic_gateway_greenAI(Creature* p_Creature) : CreatureAI(p_Creature) { Init(); }
 
-        void UpdateAI(uint32 /*diff*/) override
+        EventMap m_events;
+        uint32 ready_to_jump;
+
+        void UpdateAI(uint32 diff) override
         {
+            m_events.Update(diff);
+            while (uint32 eventId = m_events.ExecuteEvent())
+            {
+                switch (eventId)
+                {
+                case DELAY_TO_INTERACT:
+                {
+                    ready_to_jump = 1;
+                    me->SetFlag(UNIT_FIELD_INTERACT_SPELLID, eGatewaySpells::GatewayInteract);
+                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_REMOVE_CLIENT_CONTROL);
+                    me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
+                    me->SetReactState(ReactStates::REACT_PASSIVE);
+                    break;
+                }
+                }
+            }
         }
-
-        void JustRespawned() override
+        void Init()
         {
             me->CastSpell(me, eGatewaySpells::PortalVisual, true);
-
-            me->SetFlag(UNIT_FIELD_INTERACT_SPELLID, eGatewaySpells::GatewayInteract);
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_REMOVE_CLIENT_CONTROL);
-            me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-            me->SetReactState(ReactStates::REACT_PASSIVE);
-
+            ready_to_jump = 0;
+            m_events.ScheduleEvent(DELAY_TO_INTERACT, 500);
         }
 
         void OnSpellClick(Unit* p_Clicker, bool& /*result*/) override
@@ -2434,12 +2528,13 @@ public:
                 // Init dest coordinates
                 float x, y, z;
                 itr->GetPosition(x, y, z);
-
                 float speedXY;
                 float speedZ = 5;
 
                 speedXY = p_Clicker->GetExactDist2d(x, y) * 10.0f / speedZ;
+                p_Clicker->CastSpell(p_Clicker, eGatewaySpells::TeleportVisualGreen, true);
                 p_Clicker->GetMotionMaster()->MoveJump(x, y, z, p_Clicker->GetOrientation(), speedXY, speedZ);
+
                 break;
             }
         }
@@ -3596,7 +3691,8 @@ void AddSC_warlock_spell_scripts()
     new spell_warl_life_tap();
     new spell_warl_metamorphosis_cost();
     new spell_warl_molten_core_dot();
-    RegisterSpellScript(spell_warl_seed_of_corruption);
+    RegisterSpellAndAuraScriptPair(spell_warl_seed_of_corruption, aura_warl_seed_of_corruption);
+    RegisterSpellScript(spell_warl_seed_of_corruption_damage);
     RegisterSpellScript(spell_warl_shadow_bolt);
     new spell_warl_shadow_bulwark();
     RegisterAuraScript(spell_warl_shadow_ward);

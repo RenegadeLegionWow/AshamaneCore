@@ -3578,6 +3578,18 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->CasterAuraSpell = 0;
     });
 
+    // DH - Felblade - Charge damage
+    ApplySpellFix({ 213241 }, [](SpellInfo* spellInfo)
+    {
+        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_0))->TriggerSpell = 213243;
+    });
+
+    // Halls of Valor - Odyn runes
+    ApplySpellFix({ 197968, 197971, 197972, 197975, 197977 }, [](SpellInfo* spellInfo)
+    {
+        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_0))->TargetA = SpellImplicitTargetInfo(TARGET_DEST_DEST);
+    });
+
     SpellInfo* spellInfo = NULL;
     for (uint32 i = 0; i < GetSpellInfoStoreSize(); ++i)
     {

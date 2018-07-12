@@ -24,6 +24,9 @@ void AddSC_announce_login();
 void AddSC_XpWeekend();
 void AddSC_Boss_Announcer();
 
+// ADM declaration begin
+// ADM declaration end
+
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
 void AddCustomScripts()
@@ -35,4 +38,7 @@ void AddCustomScripts()
 	AddSC_announce_login();
 	AddSC_XpWeekend();
 	AddSC_Boss_Announcer();
+
+    // ADM call begin
+    // ADM call end
 }

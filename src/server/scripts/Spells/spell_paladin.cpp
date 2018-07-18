@@ -45,6 +45,10 @@ enum PaladinSpells
     SPELL_PALADIN_ARDENT_DEFENDER_HEAL          = 66235,
     SPELL_PALADIN_AVENGERS_SHIELD               = 31935,
     SPELL_PALADIN_AVENGING_WRATH                = 31884,
+    SPELL_PALADIN_AURA_OF_SACRIFICE             = 183416,
+    SPELL_PALADIN_AURA_OF_SACRIFICE_ALLY        = 210372,
+    SPELL_PALADIN_AURA_OF_SACRIFICE_DAMAGE      = 210380,
+    SPELL_PALADIN_AURA_OF_SACRIFICE_HEAL        = 210383,
     SPELL_PALADIN_BEACON_OF_FAITH               = 156910,
     SPELL_PALADIN_BEACON_OF_FAITH_PROC_AURA     = 177173,
     SPELL_PALADIN_BEACON_OF_LIGHT               = 53563,
@@ -125,7 +129,7 @@ enum PaladinSpells
     SPELL_PALADIN_THE_FIRES_OF_JUSTICE          = 209785,
     SPELL_PALADIN_WORD_OF_GLORY                 = 210191,
     SPELL_PALADIN_WORD_OF_GLORY_HEAL            = 214894,
-    SPELL_PALDIN_BLESSED_HAMMER                 = 204019,
+    SPELL_PALADIN_BLESSED_HAMMER                = 204019,
 };
 
 enum PaladinNPCs
@@ -826,45 +830,23 @@ class spell_pal_divine_storm : public SpellScript
     void HandleOnCast()
     {
         Unit* caster = GetCaster();
-        bool noHpCost = false;
-        uint8 hp = caster->GetPower(POWER_HOLY_POWER);
-        uint8 hpCost = 3;
-
         caster->SendPlaySpellVisualKit(PALADIN_VISUAL_KIT_DIVINE_STORM, 0, 0);
-        
-        if (caster->HasAura(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA))
-        {
-            caster->RemoveAurasDueToSpell(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA);
-            noHpCost = true;
-        }
-
-        if (caster->HasAura(SPELL_PALADIN_THE_FIRES_OF_JUSTICE) && !noHpCost)
-        {
-            caster->RemoveAurasDueToSpell(SPELL_PALADIN_THE_FIRES_OF_JUSTICE);
-            hpCost -= 1;
-        }
-
-        if (!noHpCost)
-        {
-            hp -= hpCost;
-            caster->SetPower(POWER_HOLY_POWER, hp);
-        }
 
         if (caster->HasAura(SPELL_PALADIN_FIST_OF_JUSTICE_RETRI))
         {
             if (caster->GetSpellHistory()->HasCooldown(SPELL_PALADIN_HAMMER_OF_JUSTICE))
                 caster->GetSpellHistory()->ModifyCooldown(SPELL_PALADIN_HAMMER_OF_JUSTICE, -7.5 * IN_MILLISECONDS);
         }
+
+        if (caster->HasAura(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA))
+            caster->RemoveAurasDueToSpell(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA);
     }
 
     void HandleDummy(SpellEffIndex /* effIndex */)
     {
-        Unit* caster = GetCaster();
-        Unit* target = GetHitUnit();
-        if (!target)
-            return;
-
-        caster->CastSpell(target, SPELL_PALADIN_DIVINE_STORM_DAMAGE, true);
+        if (Unit* caster = GetCaster())
+            if (Unit* target = GetHitUnit())
+                caster->CastSpell(target, SPELL_PALADIN_DIVINE_STORM_DAMAGE, true);
     }
 
     void Register() override
@@ -887,36 +869,18 @@ class spell_pal_templar_s_verdict : public SpellScript
     void HandleOnHit(SpellEffIndex /*effIndex*/)
     {
         Unit* caster = GetCaster();
-        Unit* target = GetExplTargetUnit();
-        bool noHpCost = false;
-        uint8 hp = caster->GetPower(POWER_HOLY_POWER);
-        uint8 hpCost = 3;
 
-        caster->CastSpell(target, SPELL_PALADIN_TEMPLARS_VERDICT_DAMAGE, true);
-
-        if (caster->HasAura(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA))
-        {
-            caster->RemoveAurasDueToSpell(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA);
-            noHpCost = true;
-        }
-
-        if (caster->HasAura(SPELL_PALADIN_THE_FIRES_OF_JUSTICE) && !noHpCost)
-        {
-            caster->RemoveAurasDueToSpell(SPELL_PALADIN_THE_FIRES_OF_JUSTICE);
-            hpCost -= 1;
-        }
-
-        if (!noHpCost)
-        {
-            hp -= hpCost;
-            caster->SetPower(POWER_HOLY_POWER, hp);
-        }
+        if (Unit* target = GetExplTargetUnit())
+            caster->CastSpell(target, SPELL_PALADIN_TEMPLARS_VERDICT_DAMAGE, true);
 
         if (caster->HasAura(SPELL_PALADIN_FIST_OF_JUSTICE_RETRI))
         {
             if (caster->GetSpellHistory()->HasCooldown(SPELL_PALADIN_HAMMER_OF_JUSTICE))
                 caster->GetSpellHistory()->ModifyCooldown(SPELL_PALADIN_HAMMER_OF_JUSTICE, -7.5 * IN_MILLISECONDS);
         }
+
+        if (caster->HasAura(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA))
+            caster->RemoveAurasDueToSpell(SPELL_PALADIN_DIVINE_PURPOSE_RET_AURA);
     }
 
     void Register() override
@@ -2276,6 +2240,69 @@ class spell_pal_consecration : public AuraScript
     }
 };
 
+// Aura of Sacrifice - 183416
+// AreaTriggerID - 100102 (custom)
+struct at_pal_aura_of_sacrifice : AreaTriggerAI
+{
+    at_pal_aura_of_sacrifice(AreaTrigger* areatrigger) : AreaTriggerAI(areatrigger)
+    {
+        at->SetPeriodicProcTimer(1000);
+    }
+
+    void OnUnitEnter(Unit* unit) override
+    {
+        if (Unit* caster = at->GetCaster())
+            if (unit->IsPlayer() && caster->IsPlayer() && caster != unit)
+                if (caster->ToPlayer()->IsInSameRaidWith(unit->ToPlayer()))
+                    caster->CastSpell(unit, SPELL_PALADIN_AURA_OF_SACRIFICE_ALLY, true);
+    }
+
+    void OnUnitExit(Unit* unit) override
+    {
+        unit->RemoveAurasDueToSpell(SPELL_PALADIN_AURA_OF_SACRIFICE_ALLY);
+    }
+};
+
+// 210372
+class spell_pal_aura_of_sacrifice_ally : public AuraScript
+{
+    PrepareAuraScript(spell_pal_aura_of_sacrifice_ally);
+
+    bool Load() override
+    {
+        return ValidateSpellInfo({ SPELL_PALADIN_AURA_OF_SACRIFICE });
+    }
+
+    void CalcAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
+    {
+        amount = -1;
+    }
+
+    void OnAbsorb(AuraEffect* /*aurEff*/, DamageInfo& dmgInfo, uint32& absorbAmount)
+    {
+        Unit* caster = GetCaster();
+        SpellInfo const* auraOfSacrificeInfo = sSpellMgr->GetSpellInfo(SPELL_PALADIN_AURA_OF_SACRIFICE);
+
+        if (!caster || !caster->IsValidAssistTarget(GetTarget()) ||
+            caster->GetHealthPct() < auraOfSacrificeInfo->GetEffect(EFFECT_2)->BasePoints)
+        {
+            absorbAmount = 0;
+            return;
+        }
+
+        absorbAmount = CalculatePct(dmgInfo.GetDamage(), auraOfSacrificeInfo->GetEffect(EFFECT_0)->BasePoints);
+
+        // Deal damages to the paladin
+        GetTarget()->CastCustomSpell(SPELL_PALADIN_AURA_OF_SACRIFICE_DAMAGE, SPELLVALUE_BASE_POINT0, absorbAmount, caster, TRIGGERED_FULL_MASK);
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_pal_aura_of_sacrifice_ally::CalcAmount, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
+        OnEffectAbsorb += AuraEffectAbsorbFn(spell_pal_aura_of_sacrifice_ally::OnAbsorb, EFFECT_0);
+    }
+};
+
 void AddSC_paladin_spell_scripts()
 {
     new spell_pal_bastion_of_light();
@@ -2334,9 +2361,11 @@ void AddSC_paladin_spell_scripts()
     RegisterCastSpellOnProcAuraScript("spell_pal_fervent_martyr", EFFECT_0, SPELL_AURA_DUMMY, SPELL_PALADIN_FERVENT_MARTYR_BUFF); // 196923
     RegisterAuraScript(spell_pal_crusade);
     RegisterAuraScript(spell_pal_consecration);
+    RegisterAuraScript(spell_pal_aura_of_sacrifice_ally);
 
     // NPC Scripts
     RegisterCreatureAI(npc_pal_lights_hammer);
 
     // Area Trigger scripts
+    RegisterAreaTriggerAI(at_pal_aura_of_sacrifice);
 }

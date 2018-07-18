@@ -5145,15 +5145,15 @@ void Unit::RemoveAllGameObjects()
 
 void Unit::_RegisterAreaTrigger(AreaTrigger* areaTrigger)
 {
-    m_areaTrigger.push_back(areaTrigger);
-    if (GetTypeId() == TYPEID_UNIT && IsAIEnabled)
+    m_areaTriggers[areaTrigger->GetGUID()] = areaTrigger->GetSpellId();
+    if (IsCreature() && IsAIEnabled)
         ToCreature()->AI()->JustRegisteredAreaTrigger(areaTrigger);
 }
 
 void Unit::_UnregisterAreaTrigger(AreaTrigger* areaTrigger)
 {
-    m_areaTrigger.erase(std::remove(m_areaTrigger.begin(), m_areaTrigger.end(), areaTrigger));
-    if (GetTypeId() == TYPEID_UNIT && IsAIEnabled)
+    m_areaTriggers.erase(areaTrigger->GetGUID());
+    if (IsCreature() && IsAIEnabled)
         ToCreature()->AI()->JustUnregisteredAreaTrigger(areaTrigger);
 }
 
@@ -5166,48 +5166,50 @@ AreaTrigger* Unit::GetAreaTrigger(uint32 spellId) const
 std::vector<AreaTrigger*> Unit::GetAreaTriggers(uint32 spellId) const
 {
     std::vector<AreaTrigger*> areaTriggers;
-    for (AreaTriggerList::const_iterator i = m_areaTrigger.begin(); i != m_areaTrigger.end(); ++i)
-        if ((*i)->GetSpellId() == spellId)
-            areaTriggers.push_back(*i);
+    for (auto itr : m_areaTriggers)
+        if (itr.second == spellId)
+            if (AreaTrigger* at = ObjectAccessor::GetAreaTrigger(*this, itr.first))
+                areaTriggers.push_back(at);
 
     return areaTriggers;
 }
 
 void Unit::RemoveAreaTrigger(uint32 spellId)
 {
-    if (m_areaTrigger.empty())
+    if (m_areaTriggers.empty())
         return;
-    for (AreaTriggerList::iterator i = m_areaTrigger.begin(); i != m_areaTrigger.end();)
-    {
-        AreaTrigger* areaTrigger = *i;
-        if (areaTrigger->GetSpellId() == spellId)
-        {
-            areaTrigger->Remove();
-            i = m_areaTrigger.begin();
-        }
-        else
-            ++i;
-    }
+
+    auto areatriggers = m_areaTriggers;
+    for (auto itr : areatriggers)
+        if (itr.second == spellId)
+            if (AreaTrigger* areaTrigger = ObjectAccessor::GetAreaTrigger(*this, itr.first))
+                areaTrigger->Remove();
 }
 
 void Unit::RemoveAreaTrigger(AuraEffect const* aurEff)
 {
-    if (m_areaTrigger.empty())
+    if (m_areaTriggers.empty())
         return;
-    for (AreaTrigger* areaTrigger : m_areaTrigger)
+
+    for (auto i = m_areaTriggers.begin(); i != m_areaTriggers.end();)
     {
-        if (areaTrigger->GetAuraEffect() == aurEff)
+        if (AreaTrigger* areaTrigger = ObjectAccessor::GetAreaTrigger(*this, i->first))
         {
-            areaTrigger->Remove();
-            break; // There can only be one AreaTrigger per AuraEffect
+            if (areaTrigger->GetAuraEffect() == aurEff)
+            {
+                areaTrigger->Remove();
+                break; // There can only be one AreaTrigger per AuraEffect
+            }
         }
     }
 }
 
 void Unit::RemoveAllAreaTriggers()
 {
-    while (!m_areaTrigger.empty())
-        m_areaTrigger.front()->Remove();
+    auto areatriggers = m_areaTriggers;
+    for (auto itr : areatriggers)
+        if (AreaTrigger* at = ObjectAccessor::GetAreaTrigger(*this, itr.first))
+            at->Remove();
 }
 
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage const* log)
@@ -6750,6 +6752,9 @@ float Unit::SpellDamagePctDone(Unit* victim, SpellInfo const* spellProto, Damage
     // Add SPELL_AURA_MOD_DAMAGE_DONE_FOR_MECHANIC percent bonus
     AddPct(DoneTotalMod, GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_DAMAGE_DONE_FOR_MECHANIC, spellProto->Mechanic));
 
+    if (IsPet() && GetOwner())
+        AddPct(DoneTotalMod, GetOwner()->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_DONE_BY_PETS_PCT, spellProto->GetSchoolMask()));
+
     // Custom scripted damage
     switch (spellProto->SpellFamilyName)
     {
@@ -7617,6 +7622,9 @@ uint32 Unit::MeleeDamageBonusDone(Unit* victim, uint32 pdamage, WeaponAttackType
     // Add SPELL_AURA_MOD_DAMAGE_DONE_FOR_MECHANIC percent bonus
     if (spellProto)
         AddPct(DoneTotalMod, GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_DAMAGE_DONE_FOR_MECHANIC, spellProto->Mechanic));
+
+    if (IsPet() && GetOwner())
+        AddPct(DoneTotalMod, GetOwner()->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_DONE_BY_PETS_PCT, spellProto->GetSchoolMask()));
 
     float tmpDamage = float(int32(pdamage) + DoneFlatBenefit) * DoneTotalMod;
 

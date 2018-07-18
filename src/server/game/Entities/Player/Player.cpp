@@ -197,6 +197,7 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this), m_archaeol
     m_bCanDelayTeleport = false;
     m_bHasDelayedTeleport = false;
     m_teleport_options = 0;
+    m_teleport_option_param = 0;
 
     m_trade = nullptr;
 
@@ -1477,7 +1478,7 @@ uint8 Player::GetChatFlags() const
     return tag;
 }
 
-bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options)
+bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options, uint32 optionParam)
 {
     if (!MapManager::IsValidMapCoord(mapid, x, y, z, orientation))
     {
@@ -1556,6 +1557,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             //lets save teleport destination for player
             m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
             m_teleport_options = options;
+            m_teleport_option_param = optionParam;
             return true;
         }
 
@@ -1572,6 +1574,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         // this will be used instead of the current location in SaveToDB
         m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
         m_teleport_options = options;
+        m_teleport_option_param = optionParam;
         SetFallInformation(0, z);
 
         // code for finish transfer called in WorldSession::HandleMovementOpcodes()
@@ -1584,6 +1587,9 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
     else
     {
         if (getClass() == CLASS_DEATH_KNIGHT && GetMapId() == MAP_EBON_HOLD_DK_START_ZONE && !IsGameMaster() && !HasSpell(50977))
+            return false;
+
+        if (mapid == MAP_BROKEN_ISLANDS && !IsGameMaster() && getLevel() < 98 && getRace() != RACE_NIGHTBORNE && getRace() != RACE_HIGHMOUNTAIN_TAUREN)
             return false;
 
         // far teleport to another map
@@ -1619,6 +1625,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 //lets save teleport destination for player
                 m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
                 m_teleport_options = options;
+                m_teleport_option_param = optionParam;
                 return true;
             }
 
@@ -1710,16 +1717,16 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
     return true;
 }
 
-bool Player::TeleportTo(uint32 mapid, Position const &pos, uint32 options /*= 0*/)
+bool Player::TeleportTo(uint32 mapid, Position const &pos, uint32 options /*= 0*/, uint32 optionParam /*= 0*/)
 {
     WorldLocation loc(mapid);
     loc.Relocate(pos);
-    return TeleportTo(loc, options);
+    return TeleportTo(loc, options, optionParam);
 }
 
-bool Player::TeleportTo(WorldLocation const &loc, uint32 options /*= 0*/)
+bool Player::TeleportTo(WorldLocation const &loc, uint32 options /*= 0*/, uint32 optionParam /*= 0*/)
 {
-    return TeleportTo(loc.GetMapId(), loc.GetPositionX(), loc.GetPositionY(), loc.GetPositionZ(), loc.GetOrientation(), options);
+    return TeleportTo(loc.GetMapId(), loc.GetPositionX(), loc.GetPositionY(), loc.GetPositionZ(), loc.GetOrientation(), options, optionParam);
 }
 
 bool Player::TeleportTo(AreaTriggerTeleportStruct const* at)
@@ -5468,6 +5475,8 @@ bool Player::UpdateGatherSkill(uint32 SkillId, uint32 SkillValue, uint32 RedLeve
                 return UpdateSkillPro(SkillId, SkillGainChance(SkillValue, RedLevel+100, RedLevel+50, RedLevel+25)*Multiplicator, gathering_skill_gain);
             else
                 return UpdateSkillPro(SkillId, (SkillGainChance(SkillValue, RedLevel+100, RedLevel+50, RedLevel+25)*Multiplicator) >> (SkillValue/sWorld->getIntConfig(CONFIG_SKILL_CHANCE_MINING_STEPS)), gathering_skill_gain);
+        case SKILL_ARCHAEOLOGY:
+            return UpdateSkillPro(SkillId, SkillValue < 50 ? 100 : 0, gathering_skill_gain);
     }
     return false;
 }
@@ -7149,6 +7158,19 @@ uint32 Player::GetCurrencyTotalCap(CurrencyTypesEntry const* currency) const
                 cap = justicecap;
             break;
         }
+        case CURRENCY_TYPE_ARCHAEOLOGY_DRAENEI:
+        case CURRENCY_TYPE_ARCHAEOLOGY_DWARF:
+        case CURRENCY_TYPE_ARCHAEOLOGY_FOSSIL:
+        case CURRENCY_TYPE_ARCHAEOLOGY_NERUBIAN:
+        case CURRENCY_TYPE_ARCHAEOLOGY_NIGHT_ELF:
+        case CURRENCY_TYPE_ARCHAEOLOGY_ORC:
+        case CURRENCY_TYPE_ARCHAEOLOGY_TOLVIR:
+        case CURRENCY_TYPE_ARCHAEOLOGY_TROLL:
+        case CURRENCY_TYPE_ARCHAEOLOGY_VRYKUL:
+        {
+            cap = 200;
+            break;
+        }
     }
 
     return cap;
@@ -7287,6 +7309,9 @@ void Player::UpdateArea(uint32 newArea)
     if (oldArea != newArea)
     {
         sScriptMgr->OnPlayerUpdateArea(this, newArea, oldArea);
+
+        if (ZoneScript* zoneScript = GetZoneScript())
+            zoneScript->OnPlayerAreaUpdate(this, newArea, oldArea);
 
         if (IsInGarrison())
         {
@@ -20409,10 +20434,9 @@ bool Player::CheckInstanceValidity(bool /*isLogin*/)
         return true;
 
     // raid instances require the player to be in a raid group to be valid
-    if (map->IsRaid() && !sWorld->getBoolConfig(CONFIG_INSTANCE_IGNORE_RAID))
-        if (map->GetEntry()->Expansion() >= uint8(CURRENT_EXPANSION))
-            if (!GetGroup() || !GetGroup()->isRaidGroup())
-                return false;
+    if (map->IsRaid() && !sWorld->getBoolConfig(CONFIG_INSTANCE_IGNORE_RAID) && (map->GetEntry()->Expansion() >= sWorld->getIntConfig(CONFIG_EXPANSION)))
+        if (!GetGroup() || !GetGroup()->isRaidGroup())
+            return false;
 
     if (Group* group = GetGroup())
     {

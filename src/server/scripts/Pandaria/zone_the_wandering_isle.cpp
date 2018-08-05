@@ -1411,7 +1411,7 @@ enum ZhaorenPhases
 
 enum ZhaorenMisc
 {
-    ZHAOREN_PATH                    = 4514730,
+    ZHAOREN_PATH                    = 210014590,
     NPC_JI_FIREPAW                  = 64505,
     NPC_AYSA_CLOUDSINGER            = 64506,
     NPC_DAFENG                      = 64532,
@@ -1921,7 +1921,7 @@ public:
                     break;
                 case DATA_VORDRAKA_DEATH:
                     Talk(TEXT_DEATH);
-                    EnterEvadeMode();
+                    EnterEvadeMode(EVADE_REASON_OTHER);
                     _events.CancelEvent(EVENT_TEMPERED_FURY);
                     break;
             }

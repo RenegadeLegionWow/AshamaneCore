@@ -266,10 +266,10 @@ struct ArtifactUnlockEntry
 {
     uint32 ID;
     uint16 ItemBonusListID;
-    uint8  PowerRank;
+    uint8 PowerRank;
     uint32 PowerID;
     uint32 PlayerConditionID;
-    uint8  ArtifactID;
+    uint8 ArtifactID;
 };
 
 struct AuctionHouseEntry
@@ -1234,6 +1234,18 @@ struct GarrFollowerXAbilityEntry
     uint16 GarrAbilityID;
     uint8 FactionIndex;
     uint16 GarrFollowerID;
+};
+
+struct GarrFollowerTypeEntry
+{
+    uint32 ID;
+    uint16 MaxItemLevel;
+    uint8 MaxFollowers;
+    uint8 MaxFollowerBuildingType;
+    uint8 GarrTypeId;
+    uint8 LevelRangeBias;
+    uint8 ItemLevelRangeBias;
+    uint8 Flags;
 };
 
 struct GarrMissionEntry

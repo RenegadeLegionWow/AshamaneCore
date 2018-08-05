@@ -1797,7 +1797,7 @@ void AuraEffect::HandleAuraModShapeshift(AuraApplication const* aurApp, uint8 mo
         }
 
         if (modelid > 0)
-            target->RestoreDisplayId();
+            target->RestoreDisplayId(target->IsMounted());
 
         switch (form)
         {
@@ -2056,7 +2056,7 @@ void AuraEffect::HandleAuraTransform(AuraApplication const* aurApp, uint8 mode, 
         if (target->getTransForm() == GetId())
             target->setTransForm(0);
 
-        target->RestoreDisplayId();
+        target->RestoreDisplayId(target->IsMounted());
 
         // Dragonmaw Illusion (restore mount model)
         if (GetId() == 42016 && target->GetMountID() == 16314)
@@ -6318,15 +6318,14 @@ void AuraEffect::HandlePlayScene(AuraApplication const* aurApp, uint8 mode, bool
     if (!player)
         return;
 
-    uint32 sceneId = GetMiscValue();
+    SceneTemplate const* sceneTemplate = sObjectMgr->GetSceneTemplate(GetMiscValue());
+    if (!sceneTemplate)
+        return;
 
     if (apply)
-        player->GetSceneMgr().PlayScene(sceneId);
+        player->GetSceneMgr().PlaySceneByTemplate(*sceneTemplate);
     else
-    {
-        if (SceneTemplate const* sceneTemplate = sObjectMgr->GetSceneTemplate(sceneId))
-            player->GetSceneMgr().CancelSceneByPackageId(sceneTemplate->ScenePackageId);
-    }
+        player->GetSceneMgr().CancelSceneByPackageId(sceneTemplate->ScenePackageId);
 }
 
 void AuraEffect::HandleOverrideZonePvpType(AuraApplication const* aurApp, uint8 mode, bool apply) const

@@ -101,8 +101,8 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         "Difficulty7, Difficulty8, Difficulty9, Difficulty10 FROM artifact_quest_xp ORDER BY ID DESC", CONNECTION_SYNCH);
 
     // ArtifactTier.db2
-    PrepareStatement(HOTFIX_SEL_ARTIFACT_TIER, "SELECT ID, ArtifactTier, MaxNumTraits, MaxArtifactKnowledge, KnowledgePlayerCondition, MinimumEmpowerKnowledge FROM artifact_tier"
-        " ORDER BY ID DESC", CONNECTION_SYNCH);
+    PrepareStatement(HOTFIX_SEL_ARTIFACT_TIER, "SELECT ID, ArtifactTier, MaxNumTraits, MaxArtifactKnowledge, KnowledgePlayerCondition, "
+        "MinimumEmpowerKnowledge FROM artifact_tier ORDER BY ID DESC", CONNECTION_SYNCH);
 
     // ArtifactUnlock.db2
     PrepareStatement(HOTFIX_SEL_ARTIFACT_UNLOCK, "SELECT ID, ItemBonusListID, PowerRank, PowerID, PlayerConditionID, ArtifactID FROM artifact_unlock"
@@ -381,6 +381,10 @@ void HotfixDatabaseConnection::DoPrepareStatements()
         " FROM garr_follower ORDER BY ID DESC", CONNECTION_SYNCH);
     PREPARE_LOCALE_STMT(HOTFIX_SEL_GARR_FOLLOWER, "SELECT ID, HordeSourceText_lang, AllianceSourceText_lang, TitleName_lang FROM garr_follower_locale"
         " WHERE locale = ?", CONNECTION_SYNCH);
+
+    // GarrFollowerType.db2
+    PrepareStatement(HOTFIX_SEL_GARR_FOLLOWER_TYPE, "SELECT ID, MaxItemLevel, MaxFollowers, MaxFollowerBuildingType, GarrTypeId, LevelRangeBias, ItemLevelRangeBias, Flags FROM garr_follower_type"
+        " ORDER BY ID DESC", CONNECTION_SYNCH);
 
     // GarrFollowerXAbility.db2
     PrepareStatement(HOTFIX_SEL_GARR_FOLLOWER_X_ABILITY, "SELECT ID, GarrAbilityID, FactionIndex, GarrFollowerID FROM garr_follower_x_ability"

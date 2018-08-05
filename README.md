@@ -12,6 +12,21 @@ Discord : https://discord.gg/Fn4VM82
 
 # AshamaneCore
 
+--------------
+
+
+* [Build Status](#build-status)
+* [Introduction](#introduction)
+* [Requirements](#requirements)
+* [Install](#install)
+* [Reporting issues](#reporting-issues)
+* [Submitting fixes](#submitting-fixes)
+* [Copyright](#copyright)
+* [Authors &amp; Contributors](#authors--contributors)
+* [Links](#links)
+
+
+
 ## Build Status
 
 [![master Build Status](https://travis-ci.org/AshamaneProject/AshamaneCore.svg?branch=master)](https://travis-ci.org/AshamaneProject/AshamaneCore) 

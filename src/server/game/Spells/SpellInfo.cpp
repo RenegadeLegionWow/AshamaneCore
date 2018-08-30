@@ -1033,6 +1033,7 @@ SpellInfo::SpellInfo(SpellInfoLoadHelper const& data, SpellEffectEntryMap const&
     RangeIndex = _misc ? _misc->RangeIndex : 0;
     RangeEntry = _misc ? (_misc->RangeIndex ? sSpellRangeStore.LookupEntry(_misc->RangeIndex) : NULL) : NULL;
     Speed = _misc ? _misc->Speed : 0;
+    LaunchDelay = _misc ? _misc->LaunchDelay : 0;
     SchoolMask = _misc ? _misc->SchoolMask : 0;
     AttributesCu = 0;
     IconFileDataId = _misc ? _misc->SpellIconFileDataID : 0;
@@ -3696,7 +3697,6 @@ std::vector<SpellPowerCost> SpellInfo::CalcPowerCost(Unit const* caster, SpellSc
         costs.reserve(powers.size());
         int32 healthCost = 0;
 
-
         for (SpellPowerEntry const* power : powers)
         {
             if (power->RequiredAuraSpellID && !caster->HasAura(power->RequiredAuraSpellID))
@@ -3849,6 +3849,7 @@ std::vector<SpellPowerCost> SpellInfo::CalcPowerCost(Unit const* caster, SpellSc
                 if (cost.Power == Powers(power->PowerType))
                 {
                     cost.Amount += powerCost;
+                    cost.OptionalAmount += optionalCost;
                     found = true;
                 }
             }
@@ -3858,6 +3859,7 @@ std::vector<SpellPowerCost> SpellInfo::CalcPowerCost(Unit const* caster, SpellSc
                 SpellPowerCost cost;
                 cost.Power = Powers(power->PowerType);
                 cost.Amount = powerCost;
+                cost.OptionalAmount = optionalCost;
                 costs.push_back(cost);
             }
         }

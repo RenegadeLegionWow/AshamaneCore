@@ -499,16 +499,7 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo) const
         case CONDITION_QUESTSTATE:
         {
             if (Player* player = object->ToPlayer())
-            {
-                if (
-                    ((ConditionValue2 & (1 << QUEST_STATUS_NONE)) && (player->GetQuestStatus(ConditionValue1) == QUEST_STATUS_NONE)) ||
-                    ((ConditionValue2 & (1 << QUEST_STATUS_COMPLETE)) && (player->GetQuestStatus(ConditionValue1) == QUEST_STATUS_COMPLETE)) ||
-                    ((ConditionValue2 & (1 << QUEST_STATUS_INCOMPLETE)) && (player->GetQuestStatus(ConditionValue1) == QUEST_STATUS_INCOMPLETE)) ||
-                    ((ConditionValue2 & (1 << QUEST_STATUS_FAILED)) && (player->GetQuestStatus(ConditionValue1) == QUEST_STATUS_FAILED)) ||
-                    ((ConditionValue2 & (1 << QUEST_STATUS_REWARDED)) && player->GetQuestRewardStatus(ConditionValue1))
-                )
-                    condMeets = true;
-            }
+                condMeets = ConditionValue2 & (1 << player->GetQuestStatus(ConditionValue1));
             break;
         }
         case CONDITION_QUEST_OBJECTIVE_COMPLETE:
@@ -2461,10 +2452,10 @@ inline bool PlayerConditionLogic(uint32 logic, std::array<bool, N>& results)
         switch ((logic >> (2 * (i - 1))) & 3)
         {
             case 1:
-                result = result || results[i];
+                result = result && results[i];
                 break;
             case 2:
-                result = result && results[i];
+                result = result || results[i];
                 break;
             default:
                 break;

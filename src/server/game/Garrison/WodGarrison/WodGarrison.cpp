@@ -192,7 +192,11 @@ void WodGarrison::TeleportOwnerAndPlayMovie() const
         }
     };
 
-    _owner->AddMovieDelayedTeleport(_siteLevel->UpgradeMovieID, _siteLevel->MapID, WodGarrisonEntrancePositions[GetFaction()][_siteLevel->GarrLevel - 1]);
+    _owner->AddMovieDelayedAction(_siteLevel->UpgradeMovieID, [this, WodGarrisonEntrancePositions]
+    {
+        _owner->TeleportTo(_siteLevel->MapID, WodGarrisonEntrancePositions[GetFaction()][_siteLevel->GarrLevel - 1]);
+    });
+
     _owner->SendMovieStart(_siteLevel->UpgradeMovieID);
 }
 
@@ -278,10 +282,7 @@ bool WodGarrison::IsAllowedArea(AreaTableEntry const* area) const
             break;
     }
 
-    if (area->Flags[1] & AREA_FLAG_GARRISON && area->ContinentID == MAP_DRAENOR)
-        return true;
-
-    return false;
+    return area->Flags[1] & AREA_FLAG_GARRISON && area->ContinentID == MAP_DRAENOR;
 }
 
 std::vector<WodGarrison::Plot*> WodGarrison::GetPlots()
@@ -466,6 +467,11 @@ void WodGarrison::ActivateBuilding(uint32 garrPlotInstanceId)
     }
 }
 
+std::unordered_set<uint32> const& WodGarrison::GetKnownBuildings() const
+{
+    return _knownBuildings;
+}
+
 void WodGarrison::SendBuildingLandmarks(Player* receiver) const
 {
     WorldPackets::Garrison::GarrisonBuildingLandmarks buildingLandmarks;
@@ -508,13 +514,11 @@ GarrisonError WodGarrison::CheckBuildingPlacement(uint32 garrPlotInstanceId, uin
     else // Building is built as a quest reward
         return GARRISON_ERROR_INVALID_BUILDINGID;
 
-    // Check all plots to find if we already have this building
-    GarrBuildingEntry const* existingBuilding;
     for (auto const& p : _plots)
     {
         if (p.second.BuildingInfo.PacketInfo)
         {
-            existingBuilding = sGarrBuildingStore.AssertEntry(p.second.BuildingInfo.PacketInfo->GarrBuildingID);
+            GarrBuildingEntry const* existingBuilding = sGarrBuildingStore.AssertEntry(p.second.BuildingInfo.PacketInfo->GarrBuildingID);
             if (existingBuilding->BuildingType == building->BuildingType)
                 if (p.first != garrPlotInstanceId || existingBuilding->UpgradeLevel + 1 != building->UpgradeLevel)    // check if its an upgrade in same plot
                     return GARRISON_ERROR_BUILDING_EXISTS;

@@ -4168,7 +4168,14 @@ void Unit::RemoveAurasOnEvade()
 
     // don't remove vehicle auras, passengers aren't supposed to drop off the vehicle
     // don't remove clone caster on evade (to be verified)
-    RemoveAllAurasExceptType(SPELL_AURA_CONTROL_VEHICLE, SPELL_AURA_CLONE_CASTER);
+    // don't remove positive auras with SPELL_ATTR3_DEATH_PERSISTENT
+    RemoveAppliedAuras([this](AuraApplication const* aurApp)
+    {
+        Aura const* aura = aurApp->GetBase();
+        return !aura->GetSpellInfo()->HasAura(GetMap()->GetDifficultyID(), SPELL_AURA_CONTROL_VEHICLE)
+            && !aura->GetSpellInfo()->HasAura(GetMap()->GetDifficultyID(), SPELL_AURA_CLONE_CASTER)
+            && (!aurApp->IsPositive() || !aura->GetSpellInfo()->HasAttribute(SPELL_ATTR3_DEATH_PERSISTENT));
+    });
 }
 
 void Unit::RemoveAllAurasOnDeath()
@@ -7467,7 +7474,7 @@ bool Unit::IsImmunedToSpell(SpellInfo const* spellInfo, Unit* caster) const
     {
         SpellInfo const* immuneSpellInfo = sSpellMgr->GetSpellInfo(itr->second);
         if ((itr->first & spellInfo->GetSchoolMask())
-            && !(immuneSpellInfo && immuneSpellInfo->IsPositive() && spellInfo->IsPositive() && IsFriendlyTo(caster))
+            && !(immuneSpellInfo && immuneSpellInfo->IsPositive() && spellInfo->IsPositive() && (caster && IsFriendlyTo(caster)))
             && !spellInfo->CanPierceImmuneAura(immuneSpellInfo))
             return true;
     }
@@ -12488,6 +12495,10 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form) const
 {
     if (GetTypeId() == TYPEID_PLAYER)
     {
+        // Check if in Cat Form and have Druid of the Flames or Burning Essence aura
+        if ((form == FORM_CAT_FORM) && (HasAura(99245) || HasAura(138927)))
+            return 38150;
+
         if (Aura* artifactAura = GetAura(ARTIFACTS_ALL_WEAPONS_GENERAL_WEAPON_EQUIPPED_PASSIVE))
             if (Item* artifact = ToPlayer()->GetItemByGuid(artifactAura->GetCastItemGUID()))
                 if (ArtifactAppearanceEntry const* artifactAppearance = sArtifactAppearanceStore.LookupEntry(artifact->GetModifier(ITEM_MODIFIER_ARTIFACT_APPEARANCE_ID)))

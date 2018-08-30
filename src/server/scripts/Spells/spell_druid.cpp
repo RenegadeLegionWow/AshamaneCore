@@ -30,7 +30,7 @@
 
 enum DruidSpells
 {
-    SPELL_DRUID_THRASH_PERIODIC_DAMAGE              = 192090,
+    SPELL_DRUID_THRASH_BEAR_PERIODIC_DAMAGE         = 192090,
     SPELL_DRUID_BLESSING_OF_THE_ANCIENTS            = 202360,
     SPELL_DRUID_BLESSING_OF_ELUNE                   = 202737,
     SPELL_DRUID_BLESSING_OF_ANSHE                   = 202739,
@@ -44,7 +44,7 @@ enum DruidSpells
     SPELL_DRUID_GORE                                = 210706,
     SPELL_DRUID_YSERA_GIFT                          = 145108,
     SPELL_DRUID_YSERA_GIFT_CASTER_HEAL              = 145109,
-    SPELL_DRUID_YSERA_GIFT_RAID_HEAL                = 145110, 
+    SPELL_DRUID_YSERA_GIFT_RAID_HEAL                = 145110,
     SPELL_DRUID_REJUVENATION                        = 774,
     SPELL_DRUID_HEALING_TOUCH                       = 5185,
     SPELL_DRUID_SWIFTMEND                           = 18562,
@@ -105,11 +105,10 @@ enum GoreSpells
     }
  };
 
-//7.3.2.25549
-// 77758 - Thrash
-class spell_dru_thrash : public SpellScript
+// Thrash (Bear Form) - 77758
+class spell_dru_thrash_bear : public SpellScript
 {
-    PrepareSpellScript(spell_dru_thrash);
+    PrepareSpellScript(spell_dru_thrash_bear);
 
     void OnHit(SpellEffIndex /*effIndex*/)
     {
@@ -118,19 +117,19 @@ class spell_dru_thrash : public SpellScript
         if (!caster || !target)
             return;
 
-        caster->CastSpell(target, SPELL_DRUID_THRASH_PERIODIC_DAMAGE, true);
+        caster->CastSpell(target, SPELL_DRUID_THRASH_BEAR_PERIODIC_DAMAGE, true);
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_dru_thrash::OnHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnEffectHitTarget += SpellEffectFn(spell_dru_thrash_bear::OnHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
     }
 };
 
-// Thrash periodic damage - 192090
-class spell_dru_thrash_periodic_damage : public AuraScript
+// Thrash (Bear Form) periodic damage aura - 192090
+class aura_dru_thrash_bear : public AuraScript
 {
-    PrepareAuraScript(spell_dru_thrash_periodic_damage);
+    PrepareAuraScript(aura_dru_thrash_bear);
 
     void OnTick(AuraEffect const* auraEff)
     {
@@ -143,14 +142,14 @@ class spell_dru_thrash_periodic_damage : public AuraScript
                     int32 dmg = player->GetUInt32Value(UNIT_FIELD_ATTACK_POWER) * 0.605f;
                     dmg = (dmg * GetStackAmount()) / 5;
                     aurEff->SetDamage(dmg);
-                } 
+                }
             }
         }
     }
 
     void Register() override
     {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_dru_thrash_periodic_damage::OnTick, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
+        OnEffectPeriodic += AuraEffectPeriodicFn(aura_dru_thrash_bear::OnTick, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE);
     }
 };
 
@@ -638,54 +637,49 @@ public:
 };
 
 // Ferocious Bite - 22568
-// @Edit : Sabertooth - 202031
-// @Version : 7.1.0.22908
-class spell_dru_ferocious_bite : public SpellScriptLoader
+class spell_dru_ferocious_bite : public SpellScript
 {
-public:
-    spell_dru_ferocious_bite() : SpellScriptLoader("spell_dru_ferocious_bite") { }
+    PrepareSpellScript(spell_dru_ferocious_bite);
 
-    class spell_dru_ferocious_bite_SpellScript : public SpellScript
+    void HandleOnTakePower(SpellPowerCost& powerCost)
     {
-        PrepareSpellScript(spell_dru_ferocious_bite_SpellScript);
+        if (powerCost.Power == POWER_COMBO_POINTS)
+            m_comboPoints = powerCost.Amount;
+    }
 
-        void CalcDmg(SpellEffIndex /*effIndex*/)
+    void CalcDmg(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* caster = GetCaster())
         {
-            Unit* caster = GetCaster();
             int32 dmg = GetHitDamage();
-            uint32 cp = caster->GetPower(POWER_COMBO_POINTS) + 1;
-            float multiplier = (float)cp / (float)caster->GetMaxPower(POWER_COMBO_POINTS);
+
+            // Calculate damage per Combo Points
+            float multiplier = (float) m_comboPoints / (float) caster->GetMaxPower(POWER_COMBO_POINTS);
             int32 newdmg = CalculatePct(dmg, multiplier * 100.f);
+
+            // Calculate additional consumed Energy (up to 25 Energy) and increase damage based on Energy consumed (up to 100%)
+            int32 energyConsumed = caster->GetPower(POWER_ENERGY) > 25 ? 25 : caster->GetPower(POWER_ENERGY);
+            AddPct(newdmg, energyConsumed * (100.0f / 25.0f));
 
             SetHitDamage(newdmg);
 
+            // If caster's target is below 25% health or the caster have Sabertooth talent,
+            // refresh the duration of caster's Rip on the target
             if (Unit* target = GetHitUnit())
-            {
-                if (target->GetHealthPct() < 25 || caster->HasAura(SPELL_DRUID_SABERTOOTH))
-                {
+                if (target->HasAuraState(AURA_STATE_HEALTHLESS_25_PERCENT) || caster->HasAura(SPELL_DRUID_SABERTOOTH))
                     if (Aura* rip = target->GetAura(SPELL_DRUID_RIP, caster->GetGUID()))
                         rip->RefreshDuration();
-                }
-            }
         }
-
-        void RemoveCP()
-        {
-            Unit* caster = GetCaster();
-            caster->SetPower(POWER_COMBO_POINTS, 0);
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_dru_ferocious_bite_SpellScript::CalcDmg, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
-            AfterHit += SpellHitFn(spell_dru_ferocious_bite_SpellScript::RemoveCP);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_dru_ferocious_bite_SpellScript();
     }
+
+    void Register() override
+    {
+        OnTakePower += SpellOnTakePowerFn(spell_dru_ferocious_bite::HandleOnTakePower);
+        OnEffectHitTarget += SpellEffectFn(spell_dru_ferocious_bite::CalcDmg, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+
+private:
+    int32 m_comboPoints = 0;
 };
 
 // Dash - 1850
@@ -764,7 +758,7 @@ public:
             if (!caster)
                 return;
 
-            int32 bonusDuration = m_ComboPoint * 8 * IN_MILLISECONDS;
+            int32 bonusDuration = m_ComboPoint * 6 * IN_MILLISECONDS;
             int32 maxDuration = GetSpellInfo()->GetMaxDuration();
             int32 newDuration = m_OldDuration + GetSpellInfo()->GetDuration() + bonusDuration;
 
@@ -1192,6 +1186,13 @@ enum CatFormSpells
     SPELL_DRUID_MOONFIRE_CAT_OVERRIDE    = 155627
 };
 
+enum DruidFlamesSpells
+{
+    SPELL_DRUID_DRUID_OF_THE_FLAMES      = 99245,
+    SPELL_DRUID_BURNING_ESSENCE          = 138927,
+    MODEL_DRUID_OF_THE_FLAMES            = 38150
+};
+
 // Cat Form - 768
 // @Called : Cat Form (Speed) - 113636, Cat Form (Thrash/Swipe) - 48629, Dash - 1850, Lunar Inspiration - 155580
 // @Version : 7.1.0.22908
@@ -1247,6 +1248,15 @@ public:
             }
         }
 
+        void AfterApply(const AuraEffect* /*p_AurEff*/, AuraEffectHandleModes /*p_Mode*/)
+        {
+            if (Unit* caster = GetCaster())
+                // Check if the caster have Burning Essence or Druid of the Flames aura
+                if (caster->HasAura(SPELL_DRUID_BURNING_ESSENCE) || caster->HasAura(SPELL_DRUID_DRUID_OF_THE_FLAMES))
+                    // Change the caster model to Druid of the Flames (Fire Cat Form)
+                    caster->SetDisplayId(MODEL_DRUID_OF_THE_FLAMES);
+        }
+
         void OnRemove(const AuraEffect* /* aurEff */, AuraEffectHandleModes /*mode*/)
         {
             if (Unit* caster = GetCaster())
@@ -1267,6 +1277,7 @@ public:
         void Register() override
         {
             OnEffectApply += AuraEffectApplyFn(spell_dru_cat_form_AuraScript::OnApply, EFFECT_0, SPELL_AURA_MOD_SHAPESHIFT, AURA_EFFECT_HANDLE_REAL);
+            AfterEffectApply += AuraEffectApplyFn(spell_dru_cat_form_AuraScript::AfterApply, EFFECT_0, SPELL_AURA_MOD_SHAPESHIFT, AURA_EFFECT_HANDLE_REAL);
             OnEffectRemove += AuraEffectRemoveFn(spell_dru_cat_form_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_MOD_SHAPESHIFT, AURA_EFFECT_HANDLE_REAL);
         }
     };
@@ -1607,57 +1618,42 @@ enum RakeSpells
 };
 
 // Rake - 1822
-// @Version : 7.1.0.22908
-class spell_dru_rake : public SpellScriptLoader
+class spell_dru_rake : public SpellScript
 {
-public:
-    spell_dru_rake() : SpellScriptLoader("spell_dru_rake") { }
+    PrepareSpellScript(spell_dru_rake);
 
-    class spell_dru_rake_SpellScript : public SpellScript
+    bool Load() override
     {
-        PrepareSpellScript(spell_dru_rake_SpellScript);
+        Unit* caster = GetCaster();
+        if (caster->HasAuraType(SPELL_AURA_MOD_STEALTH))
+            m_stealthed = true;
 
-    public:
-        spell_dru_rake_SpellScript()
-        {
-            _stealthed = false;
-        }
-
-    private:
-        bool _stealthed;
-
-        bool Load() override
-        {
-            Unit* caster = GetCaster();
-            if (caster->HasAuraType(SPELL_AURA_MOD_STEALTH))
-                _stealthed = true;
-            return true;
-        }
-
-        void HandleOnHit(SpellEffIndex /*effIndex*/)
-        {
-            Unit* caster = GetCaster();
-            Unit* target = GetExplTargetUnit();
-            if (!caster || !target)
-                return;
-
-            if (this->_stealthed || caster->HasAura(SPELL_DRUID_INCARNATION_KING_OF_JUNGLE))
-            {
-                SetHitDamage(GetHitDamage() * 2);
-                caster->CastSpell(target, SPELL_DRUID_RAKE_STUN, true);
-            }
-        }
-
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_dru_rake_SpellScript::HandleOnHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
-    {
-        return new spell_dru_rake_SpellScript();
+        return true;
     }
+
+    void HandleOnHit(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetExplTargetUnit();
+        if (!caster || !target)
+            return;
+
+        // While stealthed or have Incarnation: King of the Jungle aura, deal 100% increased damage
+        if (m_stealthed || caster->HasAura(SPELL_DRUID_INCARNATION_KING_OF_JUNGLE))
+            SetHitDamage(GetHitDamage() * 2);
+
+        // Only stun if the caster was in stealth
+        if (m_stealthed)
+            caster->CastSpell(target, SPELL_DRUID_RAKE_STUN, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_dru_rake::HandleOnHit, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+
+private:
+    bool m_stealthed = false;
 };
 
 enum MaimSpells
@@ -1670,10 +1666,10 @@ class spell_dru_maim : public SpellScript
 {
     PrepareSpellScript(spell_dru_maim);
 
-    void HandleTakePower(Powers& power, int32& powerCount)
+    void HandleTakePower(SpellPowerCost& powerCost)
     {
-        if (power == POWER_COMBO_POINTS)
-            _usedComboPoints = powerCount;
+        if (powerCost.Power == POWER_COMBO_POINTS)
+            _usedComboPoints = powerCost.Amount;
     }
 
     void AfterCast()
@@ -1934,9 +1930,9 @@ public:
             if (triggeredSpellId) // Apply new form
                 player->AddAura(triggeredSpellId, player);
             else // If not set, simply remove Travel Form dummy
-                player->RemoveAura(SPELL_DRUID_TRAVEL_FORM);                
+                player->RemoveAura(SPELL_DRUID_TRAVEL_FORM);
         }
-        
+
         void Register() override
         {
             OnEffectRemove += AuraEffectRemoveFn(spell_dru_travel_form_AuraScript::OnRemove, EFFECT_0, SPELL_AURA_MOD_SHAPESHIFT, AURA_EFFECT_HANDLE_REAL);
@@ -2295,6 +2291,163 @@ class aura_dru_charm_woodland_creature : public AuraScript
     }
 };
 
+// Swipe - 106785
+class spell_dru_swipe : public SpellScript
+{
+    PrepareSpellScript(spell_dru_swipe);
+
+    void HandleOnHit(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!caster || !target)
+            return;
+
+        int32 damage = GetHitDamage();
+        int32 casterLevel = caster->GetLevelForTarget(caster);
+
+        // This prevent awarding multiple Combo Points when multiple targets hit with Swipe AoE
+        if(m_awardComboPoint)
+            // Awards the caster 1 Combo Point (get value from the spell data)
+            caster->ModifyPower(POWER_COMBO_POINTS, sSpellMgr->GetSpellInfo(SPELL_DRUID_SWIPE_CAT)->GetEffect(EFFECT_0)->BasePoints);
+
+        // If caster is level >= 44 and the target is bleeding, deals 20% increased damage (get value from the spell data)
+        if ((casterLevel >= 44) && target->HasAuraState(AURA_STATE_BLEEDING))
+            AddPct(damage, sSpellMgr->GetSpellInfo(SPELL_DRUID_SWIPE_CAT)->GetEffect(EFFECT_1)->BasePoints);
+
+        SetHitDamage(damage);
+
+        m_awardComboPoint = false;
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_dru_swipe::HandleOnHit, EFFECT_1, SPELL_EFFECT_DUMMY);
+    }
+
+private:
+    bool m_awardComboPoint = true;
+};
+
+// Brutal Slash - 202028
+class spell_dru_brutal_slash : public SpellScript
+{
+    PrepareSpellScript(spell_dru_brutal_slash);
+
+    void HandleOnHit(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!caster || !target)
+            return;
+
+        // This prevent awarding multiple Combo Points when multiple targets hit with Brutal Slash AoE
+        if(m_awardComboPoint)
+            // Awards the caster 1 Combo Point (get value from the spell data)
+            caster->ModifyPower(POWER_COMBO_POINTS, sSpellMgr->GetSpellInfo(SPELL_DRUID_SWIPE_CAT)->GetEffect(EFFECT_0)->BasePoints);
+
+        m_awardComboPoint = false;
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_dru_brutal_slash::HandleOnHit, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+
+private:
+    bool m_awardComboPoint = true;
+};
+
+// Thrash (Cat Form) - 106830
+class spell_dru_thrash_cat : public SpellScript
+{
+    PrepareSpellScript(spell_dru_thrash_cat);
+
+    void HandleOnEffectHitTarget(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!caster || !target)
+            return;
+
+        // This prevent awarding multiple Combo Points when multiple targets hit with Thrash AoE
+        if(m_awardComboPoint)
+            // Awards the caster 1 Combo Point
+            caster->ModifyPower(POWER_COMBO_POINTS, 1);
+
+        m_awardComboPoint = false;
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_dru_thrash_cat::HandleOnEffectHitTarget, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+
+private:
+    bool m_awardComboPoint = true;
+};
+
+// Shred - 5221
+class spell_dru_shred : public SpellScript
+{
+    PrepareSpellScript(spell_dru_shred);
+
+    bool Load() override
+    {
+        Unit* caster = GetCaster();
+
+        if (caster->HasAuraType(SPELL_AURA_MOD_STEALTH))
+            m_stealthed = true;
+
+        if (caster->HasAura(SPELL_DRUID_INCARNATION_KING_OF_JUNGLE))
+            m_incarnation = true;
+
+        m_casterLevel = caster->GetLevelForTarget(caster);
+
+        return true;
+    }
+
+    void HandleCritChance(Unit* /*victim*/, float& chance)
+    {
+        // If caster is level >= 56, While stealthed or have Incarnation: King of the Jungle aura,
+        // Double the chance to critically strike
+        if ((m_casterLevel >= 56) && (m_stealthed || m_incarnation))
+            chance *= 2.0f;
+    }
+
+    void HandleOnEffectHitTarget(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!caster || !target)
+            return;
+
+        int32 damage = GetHitDamage();
+
+        // If caster is level >= 56, While stealthed or have Incarnation: King of the Jungle aura,
+        // deals 50% increased damage (get value from the spell data)
+        if ((m_casterLevel >= 56) && (m_stealthed || m_incarnation))
+            AddPct(damage, sSpellMgr->GetSpellInfo(SPELL_DRUID_SHRED)->GetEffect(EFFECT_3)->BasePoints);
+
+        // If caster is level >= 44 and the target is bleeding, deals 20% increased damage (get value from the spell data)
+        if ((m_casterLevel >= 44) && target->HasAuraState(AURA_STATE_BLEEDING))
+            AddPct(damage, sSpellMgr->GetSpellInfo(SPELL_DRUID_SHRED)->GetEffect(EFFECT_4)->BasePoints);
+
+        SetHitDamage(damage);
+    }
+
+    void Register() override
+    {
+        OnCalcCritChance += SpellOnCalcCritChanceFn(spell_dru_shred::HandleCritChance);
+        OnEffectHitTarget += SpellEffectFn(spell_dru_shred::HandleOnEffectHitTarget, EFFECT_4, SPELL_EFFECT_DUMMY);
+    }
+
+private:
+    bool m_stealthed = false;
+    bool m_incarnation = false;
+    int32 m_casterLevel;
+};
+
 void AddSC_druid_spell_scripts()
 {
     // Spells Scripts
@@ -2309,7 +2462,7 @@ void AddSC_druid_spell_scripts()
     new spell_dru_sunfire();
     new spell_dru_balance_affinity_dps();
     new spell_dru_balance_affinity_resto();
-    new spell_dru_ferocious_bite();
+    RegisterSpellScript(spell_dru_ferocious_bite);
     new spell_dru_dash();
     new spell_dru_savage_roar();
     new spell_dru_survival_instincts();
@@ -2330,16 +2483,20 @@ void AddSC_druid_spell_scripts()
     new spell_dru_living_seed();
     new spell_dru_infected_wound();
     RegisterAuraScript(spell_dru_ysera_gift);
-    new spell_dru_rake();
+    RegisterSpellScript(spell_dru_rake);
     RegisterSpellScript(spell_dru_maim);
     new spell_dru_rip();
     new spell_dru_bloodtalons();
     new spell_dru_travel_form_dummy();
     new spell_dru_travel_form();
     RegisterAuraScript(aura_dru_charm_woodland_creature);
+    RegisterSpellScript(spell_dru_swipe);
+    RegisterSpellScript(spell_dru_brutal_slash);
+    RegisterSpellScript(spell_dru_thrash_cat);
+    RegisterSpellScript(spell_dru_shred);
 
-    RegisterSpellScript(spell_dru_thrash);
-    RegisterAuraScript(spell_dru_thrash_periodic_damage);
+    RegisterSpellScript(spell_dru_thrash_bear);
+    RegisterAuraScript(aura_dru_thrash_bear);
     RegisterSpellScript(spell_dru_blessing_of_the_ancients);
     RegisterAuraScript(spell_dru_gore);
     RegisterAuraScript(aura_dru_solar_empowerment);

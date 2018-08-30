@@ -2730,12 +2730,6 @@ void SpellMgr::LoadSpellInfoCorrections()
         const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_2))->BasePoints += 30000;
     });
 
-    // Eye for an Eye
-    ApplySpellFix({ 205191 }, [](SpellInfo* spellInfo)
-    {
-        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_0))->ApplyAuraName = SPELL_AURA_PROC_TRIGGER_SPELL;
-    });
-
     // Parasitic Shadowfiend Passive
     ApplySpellFix({ 41913 }, [](SpellInfo* spellInfo)
     {
@@ -3626,6 +3620,12 @@ void SpellMgr::LoadSpellInfoCorrections()
     ApplySpellFix({ 205021 }, [](SpellInfo* spellInfo)
     {
         spellInfo->AuraInterruptFlags[AuraInterruptFlagIndex<SpellAuraInterruptFlags>::value] &= ~CHANNEL_FLAG_DELAY;
+    });
+	
+	    // Void Suppression
+    ApplySpellFix({ 260888 }, [](SpellInfo* spellInfo)
+    {
+        const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_1))->Effect = 0;
     });
 
     SpellInfo* spellInfo = NULL;

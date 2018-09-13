@@ -3529,7 +3529,8 @@ void SpellMgr::LoadSpellInfoCorrections()
         120344, // Summon Aysa
         120345, // Summon Jojo
         120749, // Summon Ji
-        120753  // Summon Garrosh
+        120753, // Summon Garrosh
+        68059,  // Miner Troubles : Summon frightened miner
     }, [](SpellInfo* spellInfo)
     {
         spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(7); // 10yd
@@ -3621,11 +3622,39 @@ void SpellMgr::LoadSpellInfoCorrections()
     {
         spellInfo->AuraInterruptFlags[AuraInterruptFlagIndex<SpellAuraInterruptFlags>::value] &= ~CHANNEL_FLAG_DELAY;
     });
-	
-	    // Void Suppression
+
+    // Void Suppression
     ApplySpellFix({ 260888 }, [](SpellInfo* spellInfo)
     {
         const_cast<SpellEffectInfo*>(spellInfo->GetEffect(EFFECT_1))->Effect = 0;
+    });
+
+    // Horde / Alliance
+    ApplySpellFix({ 195838, 195843 }, [](SpellInfo* spellInfo)
+    {
+        for (uint8 effectIndex = 0; effectIndex <= EFFECT_2; ++effectIndex)
+            const_cast<SpellEffectInfo*>(spellInfo->GetEffect(effectIndex))->Effect = SPELL_EFFECT_APPLY_AURA;
+    });
+
+    // Devour
+    ApplySpellFix({ 211543 }, [](SpellInfo* spellInfo)
+    {
+        for (uint8 effectIndex = 0; effectIndex <= EFFECT_1; ++effectIndex)
+        {
+            const_cast<SpellEffectInfo*>(spellInfo->GetEffect(effectIndex))->TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ENEMY);
+            const_cast<SpellEffectInfo*>(spellInfo->GetEffect(effectIndex))->TargetB = SpellImplicitTargetInfo();
+        }
+    });
+
+
+    ApplySpellFix({
+        70661, // See quest invis 1
+        70678, // See quest invis 2
+        70680, // See quest invis 3
+        70681, // See quest invis 4
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->RequiredAreasID = 0;
     });
 
     SpellInfo* spellInfo = NULL;

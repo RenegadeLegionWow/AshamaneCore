@@ -2314,6 +2314,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         uint8 GetItemLimitCategoryQuantity(ItemLimitCategoryEntry const* limitEntry) const;
         void ShowNeutralPlayerFactionSelectUI();
 
+        void SetEffectiveLevelAndMaxItemLevel(uint32 effectiveLevel, uint32 maxItemLevel);
+
         void UpdateItemLevelAreaBasedScaling();
         void ActivatePvpItemLevels(bool activate) { _usePvpItemLevels = activate; }
         bool IsUsingPvpItemLevels() const { return _usePvpItemLevels; }

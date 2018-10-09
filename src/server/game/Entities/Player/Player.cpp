@@ -352,6 +352,21 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this), m_archaeol
 
     memset(_voidStorageItems, 0, VOID_STORAGE_MAX_SLOT * sizeof(VoidStorageItem*));
 
+    for (WorldPackets::Battleground::RatedInfo& slotInfo : m_ratedInfos)
+    {
+        slotInfo.ArenaPersonalRating    = sWorld->getIntConfig(CONFIG_ARENA_START_PERSONAL_RATING);
+        slotInfo.BestRatingOfWeek       = 0;
+        slotInfo.BestRatingOfSeason     = 0;
+        slotInfo.ArenaMatchMakerRating  = sWorld->getIntConfig(CONFIG_ARENA_START_MATCHMAKER_RATING);
+        slotInfo.WeekWins               = 0;
+        slotInfo.PrevWeekWins           = 0;
+        slotInfo.PrevWeekGames          = 0;
+        slotInfo.SeasonWins             = 0;
+        slotInfo.WeekGames              = 0;
+        slotInfo.SeasonGames            = 0;
+        slotInfo.ProjectedConquestCap   = 0;
+    }
+
     _cinematicMgr = new CinematicMgr(this);
 
     m_achievementMgr = new PlayerAchievementMgr(this);
@@ -421,8 +436,8 @@ void Player::CleanupsBeforeDelete(bool finalCleanup)
     Unit::CleanupsBeforeDelete(finalCleanup);
 
     // clean up player-instance binds, may unload some instance saves
-    for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
-        for (BoundInstancesMap::iterator itr = m_boundInstances[i].begin(); itr != m_boundInstances[i].end(); ++itr)
+    for (auto difficultyItr = m_boundInstances.begin(); difficultyItr != m_boundInstances.end(); ++difficultyItr)
+        for (auto itr = difficultyItr->second.begin(); itr != difficultyItr->second.end(); ++itr)
             itr->second.save->RemovePlayer(this);
 }
 
@@ -4085,7 +4100,7 @@ void Player::DeleteFromDB(ObjectGuid playerguid, uint32 accountId, bool updateRe
             stmt->setUInt64(0, guid);
             trans->Append(stmt);
 
-            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHARACTER_ARENA_STATS);
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHARACTER_ARENA_DATA);
             stmt->setUInt64(0, guid);
             trans->Append(stmt);
 
@@ -6859,6 +6874,7 @@ void Player::_LoadCurrency(PreparedQueryResult result)
         cur.WeeklyQuantity = fields[2].GetUInt32();
         cur.TrackedQuantity = fields[3].GetUInt32();
         cur.Flags = fields[4].GetUInt8();
+        cur.WeekCap = fields[5].GetUInt32();
 
         _currencyStorage.insert(PlayerCurrenciesMap::value_type(currencyID, cur));
 
@@ -6884,6 +6900,7 @@ void Player::_SaveCurrency(SQLTransaction& trans)
                 stmt->setUInt32(3, itr->second.WeeklyQuantity);
                 stmt->setUInt32(4, itr->second.TrackedQuantity);
                 stmt->setUInt8(5, itr->second.Flags);
+                stmt->setUInt32(6, itr->second.WeekCap);
                 trans->Append(stmt);
                 break;
             case PLAYERCURRENCY_CHANGED:
@@ -6892,8 +6909,9 @@ void Player::_SaveCurrency(SQLTransaction& trans)
                 stmt->setUInt32(1, itr->second.WeeklyQuantity);
                 stmt->setUInt32(2, itr->second.TrackedQuantity);
                 stmt->setUInt8(3, itr->second.Flags);
-                stmt->setUInt64(4, GetGUID().GetCounter());
-                stmt->setUInt16(5, itr->first);
+                stmt->setUInt32(4, itr->second.WeekCap);
+                stmt->setUInt64(5, GetGUID().GetCounter());
+                stmt->setUInt16(6, itr->first);
                 trans->Append(stmt);
                 break;
             default:
@@ -7022,6 +7040,7 @@ void Player::ModifyCurrency(uint32 id, int32 count, bool printLog/* = true*/, bo
         cur.WeeklyQuantity = 0;
         cur.TrackedQuantity = 0;
         cur.Flags = 0;
+        cur.WeekCap = CalculateCurrencyWeekCap(id);
         _currencyStorage[id] = cur;
         itr = _currencyStorage.find(id);
     }
@@ -7139,19 +7158,52 @@ uint32 Player::GetCurrencyWeekCap(uint32 id) const
 
 void Player::ResetCurrencyWeekCap()
 {
+    FinishWeek();
+
     for (PlayerCurrenciesMap::iterator itr = _currencyStorage.begin(); itr != _currencyStorage.end(); ++itr)
     {
         itr->second.WeeklyQuantity = 0;
         itr->second.state = PLAYERCURRENCY_CHANGED;
+        itr->second.WeekCap = CalculateCurrencyWeekCap(itr->first);
     }
 
     WorldPacket data(SMSG_RESET_WEEKLY_CURRENCY, 0);
     SendDirectMessage(&data);
 }
 
+uint32 Player::CalculateCurrencyWeekCap(uint32 id) const
+{
+    CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(id);
+    if (!entry)
+        return 0;
+
+    uint32 cap = entry->MaxEarnablePerWeek;
+
+    switch (entry->ID)
+    {
+        case CurrencyTypes::CURRENCY_TYPE_CONQUEST_POINTS:
+        case CurrencyTypes::CURRENCY_TYPE_CONQUEST_META_ARENA_BG:
+        {
+            uint32 maxRating = 0;
+            for (int slot = 0; slot < MAX_ARENA_SLOT; ++ slot)
+                if (GetPrevWeekGames(slot))
+                    maxRating = std::max(maxRating, GetArenaPersonalRating(slot));
+
+            cap = ArenaHelper::GetConquestCapFromRating(maxRating);
+            break;
+        }
+    }
+
+    return cap;
+}
+
 uint32 Player::GetCurrencyWeekCap(CurrencyTypesEntry const* currency) const
 {
-    return currency->MaxEarnablePerWeek;
+    PlayerCurrenciesMap::const_iterator itr = _currencyStorage.find(currency->ID);
+    if (itr == _currencyStorage.end())
+        return CalculateCurrencyWeekCap(currency->ID);
+
+    return itr->second.WeekCap;
 }
 
 uint32 Player::GetCurrencyTotalCap(CurrencyTypesEntry const* currency) const
@@ -17998,6 +18050,39 @@ void Player::_LoadTransmogOutfits(PreparedQueryResult result)
     } while (result->NextRow());
 }
 
+void Player::_LoadArenaData(PreparedQueryResult result)
+{
+    //        0     1       2                 3                   4                 5          6         7              8             9            10
+    // SELECT slot, rating, bestRatingOfWeek, bestRatingOfSeason, matchMakerRating, weekGames, weekWins, prevWeekGames, prevWeekWins, seasonGames, seasonWins FROM character_arena_data WHERE guid = ?
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+        uint8 slot = fields[0].GetUInt8();
+
+        if (slot >= MAX_PVP_SLOT)
+        {
+            TC_LOG_ERROR("entities.player", "Player::_LoadArenaData: Player '%s' (%s) has invalid slot %u in table `character_arena_data`", GetName().c_str(), GetGUID().ToString().c_str(), slot);
+            continue;
+        }
+
+        WorldPackets::Battleground::RatedInfo& slotInfo = m_ratedInfos[slot];
+        slotInfo.ArenaPersonalRating    = fields[1].GetUInt32();
+        slotInfo.BestRatingOfWeek       = fields[2].GetUInt32();
+        slotInfo.BestRatingOfSeason     = fields[3].GetUInt32();
+        slotInfo.ArenaMatchMakerRating  = fields[4].GetInt32();
+        slotInfo.WeekGames              = fields[5].GetUInt32();
+        slotInfo.WeekWins               = fields[6].GetUInt32();
+        slotInfo.PrevWeekGames          = fields[7].GetUInt32();
+        slotInfo.PrevWeekWins           = fields[8].GetUInt32();
+        slotInfo.SeasonGames            = fields[9].GetUInt32();
+        slotInfo.SeasonWins             = fields[10].GetUInt32();
+
+    } while (result->NextRow());
+}
+
 void Player::_LoadBGData(PreparedQueryResult result)
 {
     if (!result)
@@ -18271,6 +18356,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SQLQueryHolder *holder)
 #define RelocateToHomebind(){ mapId = m_homebindMapId; instanceId = 0; Relocate(m_homebindX, m_homebindY, m_homebindZ); }
 
     _LoadGroup(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GROUP));
+    _LoadArenaData(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARENA_DATA));
 
     _LoadCurrency(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CURRENCY));
     SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, fields[50].GetUInt32());
@@ -20080,8 +20166,7 @@ void Player::_LoadGroup(PreparedQueryResult result)
 
 void Player::_LoadBoundInstances(PreparedQueryResult result)
 {
-    for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
-        m_boundInstances[i].clear();
+    m_boundInstances.clear();
 
     Group* group = GetGroup();
 
@@ -20166,8 +20251,12 @@ InstancePlayerBind* Player::GetBoundInstance(uint32 mapid, Difficulty difficulty
     if (!mapDiff)
         return nullptr;
 
-    BoundInstancesMap::iterator itr = m_boundInstances[difficulty].find(mapid);
-    if (itr != m_boundInstances[difficulty].end())
+    auto difficultyItr = m_boundInstances.find(difficulty);
+    if (difficultyItr == m_boundInstances.end())
+        return nullptr;
+
+    auto itr = difficultyItr->second.find(mapid);
+    if (itr != difficultyItr->second.end())
         if (itr->second.extendState || withExpired)
             return &itr->second;
     return nullptr;
@@ -20180,8 +20269,12 @@ InstancePlayerBind const* Player::GetBoundInstance(uint32 mapid, Difficulty diff
     if (!mapDiff)
         return nullptr;
 
-    auto itr = m_boundInstances[difficulty].find(mapid);
-    if (itr != m_boundInstances[difficulty].end())
+    auto difficultyItr = m_boundInstances.find(difficulty);
+    if (difficultyItr == m_boundInstances.end())
+        return nullptr;
+
+    auto itr = difficultyItr->second.find(mapid);
+    if (itr != difficultyItr->second.end())
         return &itr->second;
 
     return nullptr;
@@ -20202,13 +20295,18 @@ InstanceSave* Player::GetInstanceSave(uint32 mapid)
 
 void Player::UnbindInstance(uint32 mapid, Difficulty difficulty, bool unload)
 {
-    BoundInstancesMap::iterator itr = m_boundInstances[difficulty].find(mapid);
-    UnbindInstance(itr, difficulty, unload);
+    auto difficultyItr = m_boundInstances.find(difficulty);
+    if (difficultyItr != m_boundInstances.end())
+    {
+        auto itr = difficultyItr->second.find(mapid);
+        if (itr != difficultyItr->second.end())
+            UnbindInstance(itr, difficultyItr, unload);
+    }
 }
 
-void Player::UnbindInstance(BoundInstancesMap::iterator &itr, Difficulty difficulty, bool unload)
+void Player::UnbindInstance(BoundInstancesMap::mapped_type::iterator& itr, BoundInstancesMap::iterator& difficultyItr, bool unload)
 {
-    if (itr != m_boundInstances[difficulty].end())
+    if (itr != difficultyItr->second.end())
     {
         if (!unload)
         {
@@ -20224,7 +20322,7 @@ void Player::UnbindInstance(BoundInstancesMap::iterator &itr, Difficulty difficu
             GetSession()->SendCalendarRaidLockout(itr->second.save, false);
 
         itr->second.save->RemovePlayer(this);               // save can become invalid
-        m_boundInstances[difficulty].erase(itr++);
+        difficultyItr->second.erase(itr++);
     }
 }
 
@@ -20321,9 +20419,9 @@ void Player::SendRaidInfo()
 
     time_t now = time(nullptr);
 
-    for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
+    for (auto difficultyItr = m_boundInstances.begin(); difficultyItr != m_boundInstances.end(); ++difficultyItr)
     {
-        for (BoundInstancesMap::iterator itr = m_boundInstances[i].begin(); itr != m_boundInstances[i].end(); ++itr)
+        for (auto itr = difficultyItr->second.begin(); itr != difficultyItr->second.end(); ++itr)
         {
             InstancePlayerBind const& bind = itr->second;
             if (bind.perm)
@@ -20901,6 +20999,7 @@ void Player::SaveToDB(bool create /*=false*/)
     if (m_mailsUpdated)                                     //save mails only when needed
         _SaveMail(trans);
 
+    _SaveArenaData(trans);
     _SaveBGData(trans);
     _SaveInventory(trans);
     _SaveVoidStorage(trans);
@@ -21860,7 +21959,11 @@ void Player::ResetInstances(uint8 method, bool isRaid, bool isLegacy)
             diff = GetLegacyRaidDifficultyID();
     }
 
-    for (BoundInstancesMap::iterator itr = m_boundInstances[diff].begin(); itr != m_boundInstances[diff].end();)
+    auto difficultyItr = m_boundInstances.find(diff);
+    if (difficultyItr == m_boundInstances.end())
+        return;
+
+    for (auto itr = difficultyItr->second.begin(); itr != difficultyItr->second.end();)
     {
         InstanceSave* p = itr->second.save;
         const MapEntry* entry = sMapStore.LookupEntry(itr->first);
@@ -21894,7 +21997,7 @@ void Player::ResetInstances(uint8 method, bool isRaid, bool isLegacy)
             SendResetInstanceSuccess(p->GetMapId());
 
         p->DeleteFromDB();
-        m_boundInstances[diff].erase(itr++);
+        difficultyItr->second.erase(itr++);
 
         // the following should remove the instance save from the manager and delete it as well
         p->RemovePlayer(this);
@@ -22727,7 +22830,6 @@ void Player::RemovePetitionsAndSigns(ObjectGuid guid)
 }
 
 // Arena
-
 uint32 Player::GetMaxRating() const
 {
     uint32 max_value = 0;
@@ -22739,18 +22841,21 @@ uint32 Player::GetMaxRating() const
     return max_value;
 }
 
-void Player::SetArenaPersonalRating(uint8 p_Slot, uint32 p_Value)
+void Player::SetArenaPersonalRating(uint8 slot, uint32 value)
 {
-    if (p_Slot >= MAX_PVP_SLOT)
+    if (slot >= MAX_PVP_SLOT)
         return;
 
-    GetAchievementMgr()->UpdateCriteria(CRITERIA_TYPE_HIGHEST_PERSONAL_RATING, p_Value, ArenaHelper::GetTypeBySlot(p_Slot));
+    GetAchievementMgr()->UpdateCriteria(CRITERIA_TYPE_HIGHEST_PERSONAL_RATING, value, ArenaHelper::GetTypeBySlot(slot));
 
-    m_ArenaPersonalRating[p_Slot] = p_Value;
-    if (m_BestRatingOfWeek[p_Slot] < p_Value)
-        m_BestRatingOfWeek[p_Slot] = p_Value;
-    if (m_BestRatingOfSeason[p_Slot] < p_Value)
-        m_BestRatingOfSeason[p_Slot] = p_Value;
+    WorldPackets::Battleground::RatedInfo& slotInfo = m_ratedInfos[slot];
+    slotInfo.ArenaPersonalRating = value;
+
+    if (slotInfo.BestRatingOfWeek < value)
+        slotInfo.BestRatingOfWeek = value;
+
+    if (slotInfo.BestRatingOfSeason < value)
+        slotInfo.BestRatingOfSeason = value;
 }
 
 void Player::SetArenaMatchMakerRating(uint8 slot, uint32 value)
@@ -22758,35 +22863,40 @@ void Player::SetArenaMatchMakerRating(uint8 slot, uint32 value)
     if (slot >= MAX_PVP_SLOT)
         return;
 
-    m_ArenaMatchMakerRating[slot] = value;
+    WorldPackets::Battleground::RatedInfo& slotInfo = m_ratedInfos[slot];
+    slotInfo.ArenaMatchMakerRating = value;
 }
+
 void Player::IncrementWeekGames(uint8 slot)
 {
     if (slot >= MAX_PVP_SLOT)
         return;
 
-    ++m_WeekGames[slot];
+    ++m_ratedInfos[slot].WeekGames;
 }
+
 void Player::IncrementWeekWins(uint8 slot)
 {
     if (slot >= MAX_PVP_SLOT)
         return;
 
-    ++m_WeekWins[slot];
+    ++m_ratedInfos[slot].WeekWins;
 }
+
 void Player::IncrementSeasonGames(uint8 slot)
 {
     if (slot >= MAX_PVP_SLOT)
         return;
 
-    ++m_SeasonGames[slot];
+    ++m_ratedInfos[slot].SeasonGames;
 }
+
 void Player::IncrementSeasonWins(uint8 slot)
 {
     if (slot >= MAX_PVP_SLOT)
         return;
 
-    ++m_SeasonWins[slot];
+    ++m_ratedInfos[slot].SeasonWins;
 }
 
 bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc /*= nullptr*/, uint32 spellid /*= 0*/, uint32 preferredMountDisplay /*= 0*/)
@@ -23877,7 +23987,7 @@ void Player::SetBattlegroundEntryPoint()
             m_bgData.mountSpell = 0;
 
         // If map is dungeon find linked graveyard
-        if (GetMap()->IsDungeon())
+        if (GetMap()->IsDungeon() && !IsInGarrison())
         {
             if (const WorldSafeLocsEntry* entry = sObjectMgr->GetClosestGraveYard(*this, GetTeam(), this))
                 m_bgData.joinPos = WorldLocation(entry->MapID, entry->Loc.X, entry->Loc.Y, entry->Loc.Z, 0.0f);
@@ -26430,9 +26540,9 @@ void Player::ResyncRunes() const
 
 void Player::AddRunePower(uint8 index) const
 {
-    WorldPacket data(SMSG_ADD_RUNE_POWER, 4);
-    data << uint32(1 << index);                             // mask (0x00-0x3F probably)
-    GetSession()->SendPacket(&data);
+    WorldPackets::Spells::AddRunePower data;
+    data.AddedRunesMask = (1 << index);
+    GetSession()->SendPacket(data.Write());
 }
 
 void Player::InitRunes()
@@ -27520,6 +27630,33 @@ void Player::_SaveEquipmentSets(SQLTransaction& trans)
                 itr = _equipmentSets.erase(itr);
                 break;
         }
+    }
+}
+
+void Player::_SaveArenaData(SQLTransaction& trans)
+{
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHARACTER_ARENA_DATA);
+    stmt->setUInt32(0, GetGUID().GetCounter());
+    trans->Append(stmt);
+
+    uint8 slot = 0;
+    for (WorldPackets::Battleground::RatedInfo const& slotInfo : m_ratedInfos)
+    {
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_ARENA_DATA);
+        stmt->setUInt32(0, GetGUID().GetCounter());
+        stmt->setUInt8(1, slot++);
+
+        stmt->setUInt32(2,  slotInfo.ArenaPersonalRating);
+        stmt->setUInt32(3,  slotInfo.BestRatingOfWeek);
+        stmt->setUInt32(4,  slotInfo.BestRatingOfSeason);
+        stmt->setUInt32(5,  slotInfo.ArenaMatchMakerRating);
+        stmt->setUInt32(6,  slotInfo.WeekGames);
+        stmt->setUInt32(7,  slotInfo.WeekWins);
+        stmt->setUInt32(8,  slotInfo.PrevWeekGames);
+        stmt->setUInt32(9,  slotInfo.PrevWeekWins);
+        stmt->setUInt32(10, slotInfo.SeasonGames);
+        stmt->setUInt32(11, slotInfo.SeasonWins);
+        trans->Append(stmt);
     }
 }
 
@@ -29759,4 +29896,16 @@ void Player::SendCustomMessage(std::string const& opcode, std::vector<std::strin
         message << " " << "|";
 
     ChatHandler(GetSession()).SendSysMessage(message.str().c_str());
+}
+
+void Player::FinishWeek()
+{
+    for (WorldPackets::Battleground::RatedInfo& slotInfo : m_ratedInfos)
+    {
+        slotInfo.BestRatingOfWeek   = 0;
+        slotInfo.PrevWeekWins       = slotInfo.WeekWins;
+        slotInfo.PrevWeekGames      = slotInfo.WeekGames;
+        slotInfo.WeekWins           = 0;
+        slotInfo.WeekGames = 0;
+    }
 }

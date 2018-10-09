@@ -29,8 +29,8 @@ Discord : https://discord.gg/Fn4VM82
 
 ## Build Status
 
-[![master Build Status](https://travis-ci.org/AshamaneProject/AshamaneCore.svg?branch=master)](https://travis-ci.org/AshamaneProject/AshamaneCore) 
-[![Build status](https://ci.appveyor.com/api/projects/status/orswpu6j5c5rfoj6/branch/master?svg=true)](https://ci.appveyor.com/project/Traesh/ashamanecore/branch/master)
+[![master Build Status](https://travis-ci.org/AshamaneProject/AshamaneCore.svg?branch=master)](https://travis-ci.org/AshamaneProject/AshamaneCore)
+[![Build status](https://ci.appveyor.com/api/projects/status/kb0wjxh3va9c3e0k/branch/master?svg=true)](https://ci.appveyor.com/project/Traesh/ashamanecore/branch/master)
 
 ## Introduction
 
@@ -41,6 +41,9 @@ It is fully based on *TrinityCore*, with upgrades like :
 - Class Hall Basics (WIP)
 - World Quests
 - Challenge Mode (Mythic+)
+- Mercenary battleground system
+- Rated Arenas
+- TimeWalkers (BC/WotLK/Cataclsym/MoP)
 - Legion scripts (WIP)
     - BlackRookHold
     - Darkheart Thicket
@@ -81,10 +84,8 @@ make pull requests to our [Github repository](https://github.com/AshamaneProject
 
 ## Requirements
 
-
 Software requirements are available in the [wiki](https://www.trinitycore.info/display/tc/Requirements) for
 Windows, Linux and macOS.
-
 
 ## Install
 
@@ -107,18 +108,15 @@ prevent duplicates.
 C++ fixes are submitted as pull requests via Github.
 For SQL only fixes open a ticket or if a bug report exists for the bug post on existing ticket.
 
-
 ## Copyright
 
 License: GPL 2.0
 
 Read file [COPYING](COPYING).
 
-
 ## Authors &amp; Contributors
 
 Read file [THANKS](THANKS).
-
 
 ## Links
 

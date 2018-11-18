@@ -29778,6 +29778,14 @@ void Player::UpdateShop(uint32 diff)
                 delivered = true;
                 break;
             }
+            case 7: // GOLD
+            {
+                delivered = ModifyMoney(itemCount);
+                break;
+            }
+            case 6: // AT_LOGIN
+            default:
+                break;
         }
 
         if (delivered)

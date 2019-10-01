@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -137,17 +137,6 @@ enum WintergraspWorldStates
     BATTLEFIELD_WG_WORLD_STATE_ATTACKED_A        = 4023,
     BATTLEFIELD_WG_WORLD_STATE_DEFENDED_H        = 4024,
     BATTLEFIELD_WG_WORLD_STATE_DEFENDED_A        = 4025
-};
-
-enum WintergraspAreaIds
-{
-    AREA_WINTERGRASP_FORTRESS       = 4575,
-    AREA_THE_SUNKEN_RING            = 4538,
-    AREA_THE_BROKEN_TEMPLATE        = 4539,
-    AREA_WESTPARK_WORKSHOP          = 4611,
-    AREA_EASTPARK_WORKSHOP          = 4612,
-    AREA_WINTERGRASP                = 4197,
-    AREA_THE_CHILLED_QUAGMIRE       = 4589
 };
 
 enum WintergraspQuests

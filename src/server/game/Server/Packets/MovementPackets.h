@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -75,6 +75,14 @@ namespace WorldPackets
             uint32 SpellVisualID = 0;
             uint32 ProgressCurveID = 0;
             uint32 ParabolicCurveID = 0;
+            float JumpGravity = 0.0f;
+        };
+
+        struct MonsterSplineJumpExtraData
+        {
+            float JumpGravity = 0.0f;
+            uint32 StartTime = 0;
+            uint32 Duration = 0;
         };
 
         struct MovementSpline
@@ -85,8 +93,7 @@ namespace WorldPackets
             uint32 TierTransStartTime   = 0;
             int32 Elapsed               = 0;
             uint32 MoveTime             = 0;
-            float JumpGravity           = 0.0f;
-            uint32 SpecialTime          = 0;
+            uint32 FadeObjectTime       = 0;
             std::vector<TaggedPosition<Position::XYZ>> Points;   // Spline path
             uint8 Mode                  = 0;    // Spline mode - actually always 0 in this packet - Catmullrom mode appears only in SMSG_UPDATE_OBJECT. In this packet it is determined by flags
             uint8 VehicleExitVoluntary  = 0;
@@ -95,6 +102,7 @@ namespace WorldPackets
             std::vector<TaggedPosition<Position::PackedXYZ>> PackedDeltas;
             Optional<MonsterSplineFilter> SplineFilter;
             Optional<MonsterSplineSpellEffectExtraData> SpellEffectExtraData;
+            Optional<MonsterSplineJumpExtraData> JumpExtraData;
             float FaceDirection         = 0.0f;
             ObjectGuid FaceGUID;
             TaggedPosition<Position::XYZ> FaceSpot;
@@ -495,6 +503,17 @@ namespace WorldPackets
             uint32 TimeSkipped = 0;
         };
 
+        class TC_GAME_API MoveSkipTime final : public ServerPacket
+        {
+        public:
+            MoveSkipTime() : ServerPacket(SMSG_MOVE_SKIP_TIME, 16 + 4) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid MoverGuid;
+            uint32 TimeSkipped;
+        };
+
         class SummonResponse final : public ClientPacket
         {
         public:
@@ -608,7 +627,7 @@ namespace WorldPackets
                 Optional<int32> VehicleRecID;
                 Optional<CollisionHeightInfo> CollisionHeight;
                 Optional<MovementForce> MovementForce_;
-                Optional<ObjectGuid> Unknown;
+                Optional<ObjectGuid> MovementForceGUID;
             };
 
             MoveSetCompoundState() : ServerPacket(SMSG_MOVE_SET_COMPOUND_STATE, 4 + 1) { }

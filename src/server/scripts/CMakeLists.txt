@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+# Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
 #
 # This file is free software; as a special exception the author gives
 # unlimited permission to copy and/or distribute it, with or without
@@ -166,6 +166,11 @@ foreach(SCRIPT_MODULE ${SCRIPT_MODULE_LIST})
         trinity-core-interface
       PUBLIC
         game)
+
+    target_include_directories(${SCRIPT_MODULE_PROJECT_NAME}
+      PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR})
+
     set_target_properties(${SCRIPT_MODULE_PROJECT_NAME}
       PROPERTIES
         FOLDER

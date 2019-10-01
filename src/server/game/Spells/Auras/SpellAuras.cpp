@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -223,6 +223,19 @@ void AuraApplication::BuildUpdatePacket(WorldPackets::Spells::AuraInfo& auraInfo
         for (AuraEffect const* effect : GetBase()->GetAuraEffects())
             if (effect && HasEffect(effect->GetEffIndex()))       // Not all of aura's effects have to be applied on every target
                 auraData.Points[effect->GetEffIndex()] = float(effect->GetAmount());
+
+        float tempCount = 0;
+        auraData.EstimatedPoints.resize(aura->GetAuraEffects().size(), 0.0f);
+        for (AuraEffect const* effect : GetBase()->GetAuraEffects())
+            if (effect && HasEffect(effect->GetEffIndex()))
+            {
+                auraData.EstimatedPoints[effect->GetEffIndex()] = float(effect->GetDamage());
+                tempCount += effect->GetDamage();
+            }
+
+        // Don't send EstimatedPoints if all values are 0 this breaks some tooltip display values!
+        if (tempCount == 0)
+            auraData.EstimatedPoints.clear();
     }
 }
 
@@ -820,7 +833,7 @@ void Aura::RefreshDuration(bool withMods)
         int32 duration = m_spellInfo->GetMaxDuration();
         // Calculate duration of periodics affected by haste.
         if (caster->HasAuraTypeWithAffectMask(SPELL_AURA_PERIODIC_HASTE, m_spellInfo) || m_spellInfo->HasAttribute(SPELL_ATTR5_HASTE_AFFECT_DURATION))
-            duration = int32(duration * caster->GetFloatValue(UNIT_MOD_CAST_SPEED));
+            duration = int32(duration * caster->m_unitData->ModCastingSpeed);
 
         SetMaxDuration(duration);
         SetDuration(duration);
@@ -1039,7 +1052,8 @@ bool Aura::CanBeSaved() const
     if (IsPassive())
         return false;
 
-    if (GetCasterGUID() != GetOwner()->GetGUID())
+    // Check if aura is single target, not only spell info
+    if (GetCasterGUID() != GetOwner()->GetGUID() || IsSingleTarget())
         if (GetSpellInfo()->IsSingleTarget())
             return false;
 
@@ -1049,6 +1063,18 @@ bool Aura::CanBeSaved() const
 
     // Can't save vehicle auras, it requires both caster & target to be in world
     if (HasEffectType(SPELL_AURA_CONTROL_VEHICLE))
+        return false;
+
+    // do not save bind sight auras
+    if (HasEffectType(SPELL_AURA_BIND_SIGHT))
+        return false;
+
+    // no charming auras (taking direct control)
+    if (HasEffectType(SPELL_AURA_MOD_POSSESS) || HasEffectType(SPELL_AURA_MOD_POSSESS_PET))
+        return false;
+
+    // no charming auras can be saved
+    if (HasEffectType(SPELL_AURA_MOD_CHARM) || HasEffectType(SPELL_AURA_AOE_CHARM))
         return false;
 
     // Incanter's Absorbtion - considering the minimal duration and problems with aura stacking
@@ -1690,7 +1716,7 @@ void Aura::PrepareProcToTrigger(AuraApplication* aurApp, ProcEventInfo& eventInf
     SetLastProcSuccessTime(now);
 }
 
-uint32 Aura::IsProcTriggeredOnEvent(AuraApplication* aurApp, ProcEventInfo& eventInfo, std::chrono::steady_clock::time_point now) const
+uint32 Aura::GetProcEffectMask(AuraApplication* aurApp, ProcEventInfo& eventInfo, std::chrono::steady_clock::time_point now) const
 {
     SpellProcEntry const* procEntry = sSpellMgr->GetSpellProcEntry(GetId());
     // only auras with spell proc entry can trigger proc
@@ -1749,10 +1775,10 @@ uint32 Aura::IsProcTriggeredOnEvent(AuraApplication* aurApp, ProcEventInfo& even
 
     // At least one effect has to pass checks to proc aura
     uint32 procEffectMask = 0;
-    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-        if (aurApp->HasEffect(i))
-            if (GetEffect(i)->CheckEffectProc(aurApp, eventInfo))
-                procEffectMask |= (1 << i);
+    for (uint32 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+        if (procEffectMask & (1u << i))
+            if ((procEntry->DisableEffectsMask & (1u << i)) || !GetEffect(i)->CheckEffectProc(aurApp, eventInfo))
+                procEffectMask &= ~(1u << i);
 
     if (!procEffectMask)
         return 0;
@@ -1832,6 +1858,11 @@ float Aura::CalcProcChance(SpellProcEntry const& procEntry, ProcEventInfo& event
         if (Player* modOwner = caster->GetSpellModOwner())
             modOwner->ApplySpellMod(GetId(), SPELLMOD_CHANCE_OF_SUCCESS, chance);
     }
+
+    // proc chance is reduced by an additional 3.333% per level past 60
+    if ((procEntry.AttributesMask & PROC_ATTR_REDUCE_PROC_60) && eventInfo.GetActor()->getLevel() > 60)
+        chance = std::max(0.f, (1.f - ((eventInfo.GetActor()->getLevel() - 60) * 1.f / 30.f)) * chance);
+
     return chance;
 }
 
@@ -1866,7 +1897,7 @@ float Aura::CalcPPMProcChance(Unit* actor) const
     float ppm = m_spellInfo->CalcProcPPM(actor, m_castItemLevel);
     float averageProcInterval = 60.0f / ppm;
 
-    std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point currentTime = GameTime::GetGameTimeSteadyPoint();
     float secondsSinceLastAttempt = std::min(std::chrono::duration_cast<FSeconds>(currentTime - m_lastProcAttemptTime).count(), 10.0f);
     float secondsSinceLastProc = std::min(std::chrono::duration_cast<FSeconds>(currentTime - m_lastProcSuccessTime).count(), 1000.0f);
 
@@ -2031,6 +2062,20 @@ void Aura::CallScriptEffectUpdatePeriodicHandlers(AuraEffect* aurEff)
         for (; effItr != effEndItr; ++effItr)
             if (effItr->IsEffectAffected(m_spellInfo, aurEff->GetEffIndex()))
                 effItr->Call(*scritr, aurEff);
+
+        (*scritr)->_FinishScriptCall();
+    }
+}
+
+void Aura::CallScriptEffectDamageHandlers(AuraEffect const* aurEff, Unit * target, uint32 & damage)
+{
+    for (auto scritr = m_loadedScripts.begin(); scritr != m_loadedScripts.end(); ++scritr)
+    {
+        (*scritr)->_PrepareScriptCall(AURA_SCRIPT_HOOK_EFFECT_DAMAGE);
+        auto effEndItr = (*scritr)->OnDamage.end(), effItr = (*scritr)->OnDamage.begin();
+        for (; effItr != effEndItr; ++effItr)
+            if (effItr->IsEffectAffected(m_spellInfo, aurEff->GetEffIndex()))
+                effItr->Call(*scritr, aurEff, target, damage);
 
         (*scritr)->_FinishScriptCall();
     }

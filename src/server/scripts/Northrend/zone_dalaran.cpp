@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -64,7 +64,7 @@ public:
     {
         npc_mageguard_dalaranAI(Creature* creature) : ScriptedAI(creature)
         {
-            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+            creature->AddUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             creature->ApplySpellImmune(0, IMMUNITY_DAMAGE, SPELL_SCHOOL_NORMAL, true);
             creature->ApplySpellImmune(0, IMMUNITY_DAMAGE, SPELL_SCHOOL_MASK_MAGIC, true);
         }
@@ -77,7 +77,7 @@ public:
 
         void MoveInLineOfSight(Unit* who) override
         {
-            if (!who || !who->IsInWorld() || who->GetZoneId() != 4395)
+            if (!who || !who->IsInWorld() || who->GetZoneId() != ZONE_DALARAN_WOTLK)
                 return;
 
             if (!me->IsWithinDist(who, 65.0f, false))
@@ -132,8 +132,6 @@ public:
 
 enum MinigobData
 {
-    ZONE_DALARAN            = 4395,
-
     SPELL_MANABONKED        = 61834,
     SPELL_TELEPORT_VISUAL   = 51347,
     SPELL_IMPROVED_BLINK    = 61995,
@@ -174,7 +172,7 @@ class npc_minigob_manabonk : public CreatureScript
                 Map::PlayerList const &players = me->GetMap()->GetPlayers();
                 for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
                     if (Player* player = itr->GetSource()->ToPlayer())
-                        if (player->GetZoneId() == ZONE_DALARAN && !player->IsFlying() && !player->IsMounted() && !player->IsGameMaster())
+                        if (player->GetZoneId() == ZONE_DALARAN_WOTLK && !player->IsFlying() && !player->IsMounted() && !player->IsGameMaster())
                             PlayerInDalaranList.push_back(player);
 
                 if (PlayerInDalaranList.empty())
@@ -184,7 +182,7 @@ class npc_minigob_manabonk : public CreatureScript
 
             void SendMailToPlayer(Player* player)
             {
-                SQLTransaction trans = CharacterDatabase.BeginTransaction();
+                CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
                 int16 deliverDelay = irand(MAIL_DELIVER_DELAY_MIN, MAIL_DELIVER_DELAY_MAX);
                 MailDraft(MAIL_MINIGOB_ENTRY, true).SendMailTo(trans, MailReceiver(player), MailSender(MAIL_CREATURE, uint64(me->GetEntry())), MAIL_CHECK_MASK_NONE, deliverDelay);
                 CharacterDatabase.CommitTransaction(trans);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -23,6 +23,7 @@ void AddSC_custom_CongratsOnLevel();
 void AddSC_announce_login();
 void AddSC_XpWeekend();
 void AddSC_Boss_Announcer();
+void AddSC_custom_player_script();
 
 // ADM declaration begin
 // ADM declaration end
@@ -38,6 +39,7 @@ void AddCustomScripts()
 	AddSC_announce_login();
 	AddSC_XpWeekend();
 	AddSC_Boss_Announcer();
+    AddSC_custom_player_script();
 
     // ADM call begin
     // ADM call end

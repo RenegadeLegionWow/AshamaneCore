@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -3012,8 +3012,10 @@ class spell_item_socrethars_stone : public SpellScriptLoader
 
             bool Load() override
             {
-                return (GetCaster()->GetAreaId() == 3900 || GetCaster()->GetAreaId() == 3742);
+                return (GetCaster()->GetAreaId() == AREA_NETHERSTORM_INVASION_POINT_OVERLORD ||
+                        GetCaster()->GetAreaId() == AREA_NETHERSTORM_SOCRETHAR_SEAT);
             }
+
             bool Validate(SpellInfo const* /*spell*/) override
             {
                 return ValidateSpellInfo({ SPELL_SOCRETHAR_TO_SEAT, SPELL_SOCRETHAR_FROM_SEAT });
@@ -3024,10 +3026,10 @@ class spell_item_socrethars_stone : public SpellScriptLoader
                 Unit* caster = GetCaster();
                 switch (caster->GetAreaId())
                 {
-                    case 3900:
+                    case AREA_NETHERSTORM_INVASION_POINT_OVERLORD:
                         caster->CastSpell(caster, SPELL_SOCRETHAR_TO_SEAT, true);
                         break;
-                    case 3742:
+                    case AREA_NETHERSTORM_SOCRETHAR_SEAT:
                         caster->CastSpell(caster, SPELL_SOCRETHAR_FROM_SEAT, true);
                         break;
                     default:

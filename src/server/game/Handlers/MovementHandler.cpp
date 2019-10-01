@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,11 +20,13 @@
 #include "Battleground.h"
 #include "Common.h"
 #include "Corpse.h"
+#include "GameTime.h"
 #include "Garrison.h"
 #include "InstancePackets.h"
 #include "InstanceSaveMgr.h"
 #include "Log.h"
 #include "MapManager.h"
+#include "MiscPackets.h"
 #include "MovementPackets.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
@@ -35,7 +37,9 @@
 #include "WaypointMovementGenerator.h"
 #include "SpellMgr.h"
 
-#define MOVEMENT_PACKET_TIME_DELAY 0
+#include <boost/accumulators/statistics/variance.hpp>
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics.hpp>
 
 void WorldSession::HandleMoveWorldportAckOpcode(WorldPackets::Movement::WorldPortResponse& /*packet*/)
 {
@@ -93,9 +97,10 @@ void WorldSession::HandleMoveWorldportAck()
 
     float z = loc.GetPositionZ();
     if (GetPlayer()->HasUnitMovementFlag(MOVEMENTFLAG_HOVER))
-        z += GetPlayer()->GetFloatValue(UNIT_FIELD_HOVERHEIGHT);
+        z += GetPlayer()->m_unitData->HoverHeight;
 
     GetPlayer()->Relocate(loc.GetPositionX(), loc.GetPositionY(), z, loc.GetOrientation());
+    GetPlayer()->SetFallInformation(0, GetPlayer()->GetPositionZ());
 
     GetPlayer()->ResetMap();
     GetPlayer()->SetMap(newMap);
@@ -211,7 +216,7 @@ void WorldSession::HandleMoveWorldportAck()
         GetPlayer()->CastSpell(GetPlayer(), 2479, true);
 
     // in friendly area
-    else if (GetPlayer()->IsPvP() && !GetPlayer()->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP))
+    else if (GetPlayer()->IsPvP() && !GetPlayer()->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
         GetPlayer()->UpdatePvP(false, false);
 
     // resummon pet
@@ -272,6 +277,7 @@ void WorldSession::HandleMoveTeleportAck(WorldPackets::Movement::MoveTeleportAck
 
     plMover->UpdatePosition(dest, true);
     plMover->UpdateArea(plMover->GetAreaIdFromPosition());
+    plMover->SetFallInformation(0, GetPlayer()->GetPositionZ());
 
     // new zone
     if (old_zone != plMover->GetZoneId())
@@ -281,7 +287,7 @@ void WorldSession::HandleMoveTeleportAck(WorldPackets::Movement::MoveTeleportAck
             plMover->CastSpell(plMover, 2479, true);
 
         // in friendly area
-        else if (plMover->IsPvP() && !plMover->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP))
+        else if (plMover->IsPvP() && !plMover->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
             plMover->UpdatePvP(false, false);
     }
 
@@ -325,15 +331,19 @@ void WorldSession::HandleMovementOpcode(OpcodeClient opcode, MovementInfo& movem
     }
 
     // stop some emotes at player move
-    if (plrMover && (plrMover->GetUInt32Value(UNIT_NPC_EMOTESTATE) != 0))
-        plrMover->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
+    if (plrMover && (plrMover->GetEmoteState() != 0))
+        plrMover->SetEmoteState(EMOTE_ONESHOT_NONE);
 
     /* handle special cases */
     if (!movementInfo.transport.guid.IsEmpty())
     {
+        // We were teleported, skip packets that were broadcast before teleport
+        if (movementInfo.pos.GetExactDist2d(mover) > SIZE_OF_GRIDS)
+            return;
+
         // transports size limited
         // (also received at zeppelin leave by some reason with t_* as absolute in continent coordinates, can be safely skipped)
-        if (movementInfo.transport.pos.GetPositionX() > 50 || movementInfo.transport.pos.GetPositionY() > 50 || movementInfo.transport.pos.GetPositionZ() > 50)
+        if (fabs(movementInfo.transport.pos.GetPositionX()) > 75.0f || fabs(movementInfo.transport.pos.GetPositionY()) > 75.0f || fabs(movementInfo.transport.pos.GetPositionZ()) > 75.0f)
         {
             return;
         }
@@ -376,19 +386,27 @@ void WorldSession::HandleMovementOpcode(OpcodeClient opcode, MovementInfo& movem
     if (opcode == CMSG_MOVE_FALL_LAND && plrMover && !plrMover->IsInFlight())
         plrMover->HandleFall(movementInfo);
 
+    // interrupt parachutes upon falling or landing in water
+    if (opcode == CMSG_MOVE_FALL_LAND || opcode == CMSG_MOVE_START_SWIM)
+        mover->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_LANDING); // Parachutes
+
     if (plrMover && ((movementInfo.flags & MOVEMENTFLAG_SWIMMING) != 0) != plrMover->IsInWater())
     {
         // now client not include swimming flag in case jumping under water
         plrMover->SetInWater(!plrMover->IsInWater() || plrMover->GetMap()->IsUnderWater(plrMover->GetPhaseShift(), movementInfo.pos.GetPositionX(), movementInfo.pos.GetPositionY(), movementInfo.pos.GetPositionZ()));
     }
 
-    uint32 mstime = getMSTime();
-    /*----------------------*/
-    if (m_clientTimeDelay == 0)
-        m_clientTimeDelay = mstime - movementInfo.time;
-
     /* process position-change */
-    movementInfo.time = movementInfo.time + m_clientTimeDelay + MOVEMENT_PACKET_TIME_DELAY;
+    int64 movementTime = (int64)movementInfo.time + _timeSyncClockDelta;
+    if (_timeSyncClockDelta == 0 || movementTime < 0 || movementTime > 0xFFFFFFFF)
+    {
+        TC_LOG_WARN("misc", "The computed movement time using clockDelta is erronous. Using fallback instead");
+        movementInfo.time = GameTime::GetGameTimeMS();
+    }
+    else
+    {
+        movementInfo.time = (uint32)movementTime;
+    }
 
     movementInfo.guid = mover->GetGUID();
     mover->m_movementInfo = movementInfo;
@@ -448,7 +466,7 @@ void WorldSession::HandleMovementOpcode(OpcodeClient opcode, MovementInfo& movem
                 /// @todo discard movement packets after the player is rooted
                 if (plrMover->IsAlive())
                 {
-                    plrMover->SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
+                    plrMover->AddPlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
                     plrMover->EnvironmentalDamage(DAMAGE_FALL_TO_VOID, GetPlayer()->GetMaxHealth());
                     // player can be alive if GM/etc
                     // change the death state to CORPSE to prevent the death timer from
@@ -459,7 +477,7 @@ void WorldSession::HandleMovementOpcode(OpcodeClient opcode, MovementInfo& movem
             }
         }
         else
-            plrMover->RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
+            plrMover->RemovePlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
 
         if (opcode == CMSG_MOVE_JUMP)
         {
@@ -581,8 +599,100 @@ void WorldSession::HandleSetCollisionHeightAck(WorldPackets::Movement::MoveSetCo
     GetPlayer()->ValidateMovementInfo(&setCollisionHeightAck.Data.Status);
 }
 
-void WorldSession::HandleMoveTimeSkippedOpcode(WorldPackets::Movement::MoveTimeSkipped& /*moveTimeSkipped*/)
+void WorldSession::HandleMoveTimeSkippedOpcode(WorldPackets::Movement::MoveTimeSkipped& moveTimeSkipped)
 {
+    TC_LOG_DEBUG("network", "WORLD: Received CMSG_MOVE_TIME_SKIPPED");
+
+    Unit* mover = GetPlayer()->m_unitMovedByMe;
+
+    if (!mover)
+    {
+        TC_LOG_WARN("entities.player", "WorldSession::HandleMoveTimeSkippedOpcode wrong mover state from the unit moved by the player %s", GetPlayer()->GetGUID().ToString().c_str());
+        return;
+    }
+
+    // prevent tampered movement data
+    if (moveTimeSkipped.MoverGUID != mover->GetGUID())
+    {
+        TC_LOG_WARN("entities.player", "WorldSession::HandleMoveTimeSkippedOpcode wrong guid from the unit moved by the player %s", GetPlayer()->GetGUID().ToString().c_str());
+        return;
+    }
+
+    mover->m_movementInfo.time += moveTimeSkipped.TimeSkipped;
+
+    WorldPackets::Movement::MoveSkipTime moveSkipTime;
+    moveSkipTime.MoverGuid = moveTimeSkipped.MoverGUID;
+    moveSkipTime.TimeSkipped = moveTimeSkipped.TimeSkipped;
+    GetPlayer()->SendMessageToSet(moveSkipTime.Write(), false);
+}
+
+void WorldSession::HandleTimeSyncResponse(WorldPackets::Misc::TimeSyncResponse& packet)
+{
+    TC_LOG_DEBUG("network", "CMSG_TIME_SYNC_RESP");
+
+    if (_pendingTimeSyncRequests.count(packet.SequenceIndex) == 0)
+        return;
+
+    uint32 serverTimeAtSent = _pendingTimeSyncRequests.at(packet.SequenceIndex);
+    _pendingTimeSyncRequests.erase(packet.SequenceIndex);
+
+    // time it took for the request to travel to the client, for the client to process it and reply and for response to travel back to the server.
+    // we are going to make 2 assumptions:
+    // 1) we assume that the request processing time equals 0.
+    // 2) we assume that the packet took as much time to travel from server to client than it took to travel from client to server.
+    uint32 roundTripDuration = getMSTimeDiff(serverTimeAtSent, packet.GetRawPacket()->GetReceivedTime());
+    uint32 lagDelay = roundTripDuration / 2;
+
+    /*
+    clockDelta = serverTime - clientTime
+    where
+    serverTime: time that was displayed on the clock of the SERVER at the moment when the client processed the SMSG_TIME_SYNC_REQUEST packet.
+    clientTime:  time that was displayed on the clock of the CLIENT at the moment when the client processed the SMSG_TIME_SYNC_REQUEST packet.
+    Once clockDelta has been computed, we can compute the time of an event on server clock when we know the time of that same event on the client clock,
+    using the following relation:
+    serverTime = clockDelta + clientTime
+    */
+    int64 clockDelta = (int64)(serverTimeAtSent + lagDelay) - (int64)packet.ClientTime;
+    _timeSyncClockDeltaQueue.push_back(std::pair<int64, uint32>(clockDelta, roundTripDuration));
+    ComputeNewClockDelta();
+}
+
+void WorldSession::ComputeNewClockDelta()
+{
+    // implementation of the technique described here: https://web.archive.org/web/20180430214420/http://www.mine-control.com/zack/timesync/timesync.html
+    // to reduce the skew induced by dropped TCP packets that get resent.
+
+    using namespace boost::accumulators;
+
+    accumulator_set<uint32, features<tag::mean, tag::median, tag::variance(lazy)> > latencyAccumulator;
+
+    for (auto pair : _timeSyncClockDeltaQueue)
+        latencyAccumulator(pair.second);
+
+    uint32 latencyMedian = static_cast<uint32>(std::round(median(latencyAccumulator)));
+    uint32 latencyStandardDeviation = static_cast<uint32>(std::round(sqrt(variance(latencyAccumulator))));
+
+    accumulator_set<int64, features<tag::mean> > clockDeltasAfterFiltering;
+    uint32 sampleSizeAfterFiltering = 0;
+    for (auto pair : _timeSyncClockDeltaQueue)
+    {
+        if (pair.second < latencyStandardDeviation + latencyMedian) {
+            clockDeltasAfterFiltering(pair.first);
+            sampleSizeAfterFiltering++;
+        }
+    }
+
+    if (sampleSizeAfterFiltering != 0)
+    {
+        int64 meanClockDelta = static_cast<int64>(std::round(mean(clockDeltasAfterFiltering)));
+        if (std::abs(meanClockDelta - _timeSyncClockDelta) > 25)
+            _timeSyncClockDelta = meanClockDelta;
+    }
+    else if (_timeSyncClockDelta == 0)
+    {
+        std::pair<int64, uint32> back = _timeSyncClockDeltaQueue.back();
+        _timeSyncClockDelta = back.first;
+    }
 }
 
 void WorldSession::HandleMoveSplineDoneOpcode(WorldPackets::Movement::MoveSplineDone& moveSplineDone)

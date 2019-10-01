@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -91,7 +91,7 @@ public:
 
     void OnLogin(Player* player, bool firstLogin) override
     {
-        if (player->getClass() == CLASS_DEMON_HUNTER && player->GetZoneId() == 7705 && firstLogin)
+        if (player->getClass() == CLASS_DEMON_HUNTER && player->GetZoneId() == ZONE_MARDUM && firstLogin)
         {
             player->RemoveAurasDueToSpell(SPELL_PHASE_MARDUM_WELCOME);
         }
@@ -101,8 +101,8 @@ public:
     {
         if (checkTimer <= diff)
         {
-            if (player->getClass() == CLASS_DEMON_HUNTER && player->GetZoneId() == 7705 && player->GetQuestStatus(QUEST_INVASION_BEGIN) == QUEST_STATUS_NONE &&
-                player->GetPositionY() < 3280 && !player->HasAura(SPELL_SCENE_MARDUM_WELCOME) &&
+            if (player->getClass() == CLASS_DEMON_HUNTER && player->GetZoneId() == ZONE_MARDUM && player->GetQuestStatus(QUEST_INVASION_BEGIN) == QUEST_STATUS_NONE &&
+                player->GetPositionY() < 3280.f && !player->HasAura(SPELL_SCENE_MARDUM_WELCOME) &&
                 !player->HasAura(SPELL_PHASE_MARDUM_WELCOME))
             {
                 player->CastSpell(player, SPELL_SCENE_MARDUM_WELCOME, true);
@@ -451,31 +451,37 @@ struct npc_mardum_doom_commander_beliash : public ScriptedAI
         SAY_ONDEATH = 1,
     };
 
+    void Reset() override
+    {
+        me->GetScheduler().CancelAll();
+    }
+
     void EnterCombat(Unit*) override
     {
         Talk(SAY_ONCOMBAT_BELIASH);
 
-        me->GetScheduler().Schedule(Milliseconds(2500), [this](TaskContext context)
+        me->GetScheduler().Schedule(2500ms, [](TaskContext context)
         {
-            me->CastSpell(me, SPELL_SHADOW_BOLT_VOLLEY, true);
-            context.Repeat(Milliseconds(2500));
+            GetContextUnit()->CastSpell(nullptr, SPELL_SHADOW_BOLT_VOLLEY, false);
+            context.Repeat(20s);
         });
 
-        me->GetScheduler().Schedule(Seconds(10), [this](TaskContext context)
+        /*me->GetScheduler().Schedule(Seconds(10), [this](TaskContext context)
         {
             me->CastSpell(me, SPELL_SHADOW_RETREAT);
             context.Repeat(Seconds(15));
 
             // During retreat commander make blaze appear
-            me->GetScheduler().Schedule({ Milliseconds(500), Milliseconds(1000) }, [this](TaskContext /*context*/)
+            me->GetScheduler().Schedule({ Milliseconds(500), Milliseconds(1000) }, [this](TaskContext context)
             {
                 me->CastSpell(me, SPELL_SHADOW_RETREAT_AT, true);
             });
-        });
+        });*/
     }
 
     void JustDied(Unit* /*killer*/) override
     {
+        me->GetScheduler().CancelAll();
         Talk(SAY_ONDEATH);
 
         std::list<Player*> players;
@@ -628,7 +634,7 @@ class spell_mardum_spectral_sight : public SpellScript
 
     void HandleOnCast()
     {
-        if (GetCaster()->IsPlayer() && GetCaster()->GetAreaId() == 7754)
+        if (GetCaster()->IsPlayer() && GetCaster()->GetAreaId() == AREA_MARDUM_CRYPTIC_HOLLOW)
             GetCaster()->ToPlayer()->KilledMonsterCredit(96437);
     }
 

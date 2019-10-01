@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -428,7 +428,7 @@ void MotionMaster::MoveKnockbackFrom(float srcX, float srcY, float speedXY, floa
     if (_owner->GetTypeId() == TYPEID_PLAYER)
         return;
 
-    if (speedXY <= 0.1f)
+    if (speedXY < 0.01f)
         return;
 
     float x, y, z;
@@ -477,7 +477,7 @@ void MotionMaster::MoveJump(float x, float y, float z, float o, float speedXY, f
     JumpArrivalCastArgs const* arrivalCast /*= nullptr*/, Movement::SpellEffectExtraData const* spellEffectExtraData /*= nullptr*/)
 {
     TC_LOG_DEBUG("misc", "Unit (%s) jumps to point (X: %f Y: %f Z: %f).", _owner->GetGUID().ToString().c_str(), x, y, z);
-    if (speedXY <= 0.1f)
+    if (speedXY < 0.01f)
         return;
 
     float moveTimeHalf = speedZ / Movement::gravity;
@@ -543,7 +543,7 @@ void MotionMaster::MoveCirclePath(float x, float y, float z, float radius, bool 
     init.Launch();
 }
 
-void MotionMaster::MoveSmoothPath(uint32 pointId, Position const* pathPoints, size_t pathSize, bool walk, bool fly)
+void MotionMaster::MoveSmoothPath(uint32 pointId, Position const* pathPoints, size_t pathSize, bool walk, bool fly, Optional<float> velocity)
 {
     Movement::MoveSplineInit init(_owner);
     if (fly)
@@ -559,6 +559,10 @@ void MotionMaster::MoveSmoothPath(uint32 pointId, Position const* pathPoints, si
     {
         return G3D::Vector3(point.GetPositionX(), point.GetPositionY(), point.GetPositionZ());
     });
+
+    if (velocity.is_initialized())
+        init.SetVelocity(*velocity);
+
     init.MovebyPath(path);
     init.SetWalk(walk);
     init.Launch();
@@ -622,7 +626,10 @@ void MotionMaster::MoveFall(uint32 id /*=0*/)
 
     // don't run spline movement for players
     if (_owner->GetTypeId() == TYPEID_PLAYER)
+    {
+        _owner->ToPlayer()->SetFallInformation(0, _owner->GetPositionZ());
         return;
+    }
 
     Movement::MoveSplineInit init(_owner);
     init.MoveTo(_owner->GetPositionX(), _owner->GetPositionY(), tz, false);
@@ -714,14 +721,6 @@ void MotionMaster::MovePath(uint32 path_id, bool repeatable)
 
     TC_LOG_DEBUG("misc", "%s starts moving over path (Id:%u, repeatable: %s).",
         _owner->GetGUID().ToString().c_str(), path_id, repeatable ? "YES" : "NO");
-}
-
-void MotionMaster::MovePath(WaypointPath& path, bool repeatable)
-{
-    Mutate(new WaypointMovementGenerator<Creature>(path, repeatable), MOTION_SLOT_IDLE);
-
-    TC_LOG_DEBUG("misc", "%s starts moving over path (repeatable: %s).",
-        _owner->GetGUID().ToString().c_str(), repeatable ? "YES" : "NO");
 }
 
 void MotionMaster::MoveRotate(uint32 time, RotateDirection direction)

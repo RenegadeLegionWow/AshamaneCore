@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -73,7 +73,7 @@ public:
         void MoveInLineOfSight(Unit* who) override
         {
             // If Lorewalker stonestep sees a player, launch the speech.
-            if (!event_go && who->ToPlayer() && who->GetAreaId() == 6471)//Salle de l'assemblee cramoisie
+            if (!event_go && who->ToPlayer() && who->GetAreaId() == AREA_MOGUSHAN_PALACE_CRIMSON_ASSEMBLY_HALL)
             {
                 if (me->GetInstanceScript())
                     me->GetInstanceScript()->SetData(TYPE_MING_INTRO, 0);
@@ -220,7 +220,7 @@ public:
                 Talk(TALK_DEFEATED);
                 damage = 0;
                 me->SetReactState(REACT_PASSIVE);
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                me->AddUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
                 me->GetMotionMaster()->MoveTargetedHome();
                 me->AttackStop();
                 events.Reset();
@@ -458,7 +458,7 @@ public:
 
         void MoveInLineOfSight(Unit* who) override
         {
-            if (who->ToPlayer() && who->GetAreaId() == 6471 //Salle de l'assemblee cramoisie
+            if (who->ToPlayer() && who->GetAreaId() == AREA_MOGUSHAN_PALACE_CRIMSON_ASSEMBLY_HALL
                 && me->GetDistance2d(who) < 2.0f
                 && who->isInFront(me)
                 && status != STATUS_ATTACK_GRUNTS)
@@ -601,7 +601,7 @@ public:
                 Talk(TALK_DEFEATED);
                 damage = 0;
                 me->SetReactState(REACT_PASSIVE);
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                me->AddUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
                 me->GetMotionMaster()->MoveTargetedHome();
                 me->AttackStop();
                 events.Reset();
@@ -691,7 +691,7 @@ public:
         mob_mu_shiba_AI(Creature* creature) : ScriptedAI(creature)
         {
             me->SetReactState(REACT_PASSIVE);
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+            me->AddUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         EventMap events;
@@ -712,7 +712,7 @@ public:
             {
                 case ACTION_ATTACK:
                     me->SetReactState(REACT_AGGRESSIVE);
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                    me->RemoveUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
                     DoZoneInCombat();
 
                     if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM))
@@ -722,7 +722,7 @@ public:
                     events.Reset();
                     me->AttackStop();
                     me->SetReactState(REACT_PASSIVE);
-                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                    me->AddUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
                     break;
             }
         }
@@ -846,7 +846,7 @@ public:
                 Talk(TALK_DEFEATED);
                 damage = 0;
                 me->SetReactState(REACT_PASSIVE);
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                me->AddUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
                 me->GetMotionMaster()->MoveTargetedHome();
                 me->AttackStop();
                 events.Reset();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,12 +19,6 @@
 #include "ScriptMgr.h"
 #include "Player.h"
 #include "SpellMgr.h"
-
-enum
-{
-    ZONE_MACARE             = 8701,
-    AREA_MACAREE_VINDICAAR  = 8915
-};
 
 // Zone 8701
 class zone_argus_macaree : public ZoneScript

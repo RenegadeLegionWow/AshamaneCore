@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 #include "World.h"
 #include <sstream>
 #include <iomanip>
+
+static_assert(sizeof(ObjectGuid) == sizeof(uint64) * 2, "ObjectGuid must be exactly 16 bytes");
 
 namespace
 {
@@ -87,6 +89,7 @@ namespace
         SET_GUID_NAME(CommerceObj);
         SET_GUID_NAME(ClientSession);
         SET_GUID_NAME(Cast);
+        SET_GUID_NAME(ClientConnection);
 
 #undef SET_GUID_NAME
     }

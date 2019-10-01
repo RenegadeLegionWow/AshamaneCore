@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -154,7 +154,7 @@ class instance_stratholme : public InstanceMapScript
                         break;
                     case GO_GAUNTLET_GATE1:
                         //weird, but unless flag is set, client will not respond as expected. DB bug?
-                        go->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_LOCKED);
+                        go->AddFlag(GO_FLAG_LOCKED);
                         gauntletGate1GUID = go->GetGUID();
                         break;
                     case GO_ZIGGURAT1:
@@ -306,15 +306,16 @@ class instance_stratholme : public InstanceMapScript
                             if (GetData(TYPE_BARON_RUN) == IN_PROGRESS)
                             {
                                 DoRemoveAurasDueToSpellOnPlayers(SPELL_BARON_ULTIMATUM);
-                                Map::PlayerList const& players = instance->GetPlayers();
-                                if (!players.isEmpty())
-                                    for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
-                                        if (Player* player = itr->GetSource())
-                                            if (player->GetQuestStatus(QUEST_DEAD_MAN_PLEA) == QUEST_STATUS_INCOMPLETE)
-                                            {
-                                                player->AreaExploredOrEventHappens(QUEST_DEAD_MAN_PLEA);
-                                                player->KilledMonsterCredit(NPC_YSIDA);
-                                            }
+
+                                DoOnPlayers([](Player* player)
+                                {
+                                    if (player->GetQuestStatus(QUEST_DEAD_MAN_PLEA) == QUEST_STATUS_INCOMPLETE)
+                                    {
+                                        player->AreaExploredOrEventHappens(QUEST_DEAD_MAN_PLEA);
+                                        player->KilledMonsterCredit(NPC_YSIDA);
+                                    }
+                                });
+
                                 SetData(TYPE_BARON_RUN, DONE);
                             }
                         }

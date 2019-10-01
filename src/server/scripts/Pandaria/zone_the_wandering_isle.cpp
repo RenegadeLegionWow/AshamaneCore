@@ -568,7 +568,7 @@ public:
                 _events.Reset();
                 me->RemoveAllAuras();
                 me->setFaction(35);
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15 | UNIT_FLAG_IMMUNE_TO_PC);
+                me->AddUnitFlag(UnitFlags(UNIT_FLAG_UNK_15 | UNIT_FLAG_IMMUNE_TO_PC));
                 me->AttackStop();
                 attacker->AttackStop();
                 me->_ExitVehicle();
@@ -1322,7 +1322,7 @@ public:
 
         void Reset() override
         {
-            me->SetDisplayId(me->GetCreatureTemplate()->Modelid1);
+            me->SetDisplayFromModel(0);
             _events.ScheduleEvent(EVENT_FIRE, 500);
         }
 
@@ -1728,8 +1728,8 @@ public:
         void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
         {
             Unit* target = GetTarget();
-            target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_29);
-            target->SetFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
+            target->AddUnitFlag(UNIT_FLAG_UNK_29);
+            target->AddUnitFlag2(UNIT_FLAG2_FEIGN_DEATH);
             target->SetHealth(target->CountPctFromMaxHealth(25));
         }
 
@@ -2264,7 +2264,6 @@ enum NpcHealersActive
 {
     DATA_HEALER_ACTIVE          = 1,
     DATA_HEALER_DIED            = 2,
-    AREA_WRECK_OF_THE_SKYSEEKER = 5833,
     WORLD_STATE_HEALERS_ACTIVE  = 6488
 };
 
@@ -2301,7 +2300,7 @@ public:
 
             for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
                 if (Player* player = itr->GetSource())
-                    if (player->GetAreaId() == AREA_WRECK_OF_THE_SKYSEEKER)
+                    if (player->GetAreaId() == AREA_WANDERING_ISLE_WRECK_OF_THE_SKYSEEKER)
                         player->SendUpdateWorldState(WORLD_STATE_HEALERS_ACTIVE, _healersActive);
         }
 

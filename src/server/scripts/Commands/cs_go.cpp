@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -340,14 +340,14 @@ public:
         float x, y, z;
         uint32 mapId;
 
-        if (QuestPOIVector const* poiData = sObjectMgr->GetQuestPOIVector(questID))
+        if (QuestPOIData const* poiData = sObjectMgr->GetQuestPOIData(questID))
         {
-            auto data = poiData->front();
+            auto data = poiData->QuestPOIBlobDataStats.front();
 
             mapId = data.MapID;
 
-            x = data.points.front().X;
-            y = data.points.front().Y;
+            x = data.QuestPOIBlobPointStats.front().X;
+            y = data.QuestPOIBlobPointStats.front().Y;
         }
         else
         {

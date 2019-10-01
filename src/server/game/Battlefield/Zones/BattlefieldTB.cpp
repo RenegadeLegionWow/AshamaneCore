@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+* Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
 *
 * This program is free software; you can redistribute it and/or modify it
 * under the terms of the GNU General Public License as published by the
@@ -390,7 +390,7 @@ void BattlefieldTB::SendInitWorldStatesToAll()
     Map::PlayerList const& players = m_Map->GetPlayers();
     for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
         if (Player* player = itr->GetSource()->ToPlayer())
-            if (player->GetZoneId() == 5389) // ZONE_TOL_BARAD_PENINSULA
+            if (player->GetZoneId() == ZONE_TOL_BARAD_PENINSULA)
                 player->SendInitWorldStates();
 }
 

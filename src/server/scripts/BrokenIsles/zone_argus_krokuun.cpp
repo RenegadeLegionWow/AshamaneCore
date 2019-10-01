@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -19,12 +19,6 @@
 #include "ScriptMgr.h"
 #include "Player.h"
 #include "SpellMgr.h"
-
-enum
-{
-    ZONE_KROKUUN            = 8574,
-    AREA_KROKUUN_VINDICAAR  = 8714
-};
 
 // Zone 8574
 class zone_argus_krokuun : public ZoneScript

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -85,11 +85,10 @@ public:
 
         void UpdateQuestCredit()
         {
-            Map::PlayerList const& players = instance->GetPlayers();
-
-            for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
-                if (Player* player = itr->GetSource())
-                    player->KilledMonsterCredit(LODGE_QUEST_TRIGGER);
+            DoOnPlayers([](Player* player)
+            {
+                player->KilledMonsterCredit(LODGE_QUEST_TRIGGER);
+            });
         }
 
         void OnCreatureCreate(Creature* creature) override

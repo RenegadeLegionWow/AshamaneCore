@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -62,11 +62,11 @@ public:
         switch (itemId)
         {
             case 24538:
-                if (player->GetAreaId() != 3628)
+                if (player->GetAreaId() != AREA_HALAA)
                     disabled = true;
                 break;
             case 34489:
-                if (player->GetZoneId() != 4080)
+                if (player->GetZoneId() != ZONE_ISLE_OF_QUEL_DANAS)
                     disabled = true;
                 break;
             case 34475:
@@ -163,7 +163,7 @@ public:
         ItemPosCountVec dest;
         uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, 39883, 1); // Cracked Egg
         if (msg == EQUIP_ERR_OK)
-            player->StoreNewItem(dest, 39883, true, GenerateItemRandomPropertyId(39883));
+            player->StoreNewItem(dest, 39883, true, GenerateItemRandomBonusListId(39883));
 
         return true;
     }
@@ -183,7 +183,7 @@ public:
         ItemPosCountVec dest;
         uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, 44718, 1); // Ripe Disgusting Jar
         if (msg == EQUIP_ERR_OK)
-            player->StoreNewItem(dest, 44718, true, GenerateItemRandomPropertyId(44718));
+            player->StoreNewItem(dest, 44718, true, GenerateItemRandomBonusListId(44718));
 
         return true;
     }
@@ -250,7 +250,7 @@ public:
         {
             summon->SetVisible(false);
             summon->SetReactState(REACT_PASSIVE);
-            summon->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+            summon->AddUnitFlag(UNIT_FLAG_IMMUNE_TO_PC);
         }
         return false;
     }
@@ -262,9 +262,7 @@ public:
 
 enum PetrovClusterBombs
 {
-    SPELL_PETROV_BOMB           = 42406,
-    AREA_ID_SHATTERED_STRAITS   = 4064,
-    ZONE_ID_HOWLING             = 495
+    SPELL_PETROV_BOMB = 42406,
 };
 
 class item_petrov_cluster_bombs : public ItemScript
@@ -274,10 +272,10 @@ public:
 
     bool OnUse(Player* player, Item* /*item*/, SpellCastTargets const& /*targets*/, ObjectGuid castId) override
     {
-        if (player->GetZoneId() != ZONE_ID_HOWLING)
+        if (player->GetZoneId() != ZONE_HOWLING_FJORD)
             return false;
 
-        if (!player->GetTransport() || player->GetAreaId() != AREA_ID_SHATTERED_STRAITS)
+        if (!player->GetTransport() || player->GetAreaId() != AREA_HOWLING_FJORD_SHATTERED_STRAITS)
         {
             if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(SPELL_PETROV_BOMB))
                 Spell::SendCastResult(player, spellInfo, 0, castId, SPELL_FAILED_NOT_HERE);
@@ -428,7 +426,7 @@ public:
         ItemPosCountVec dest;
         uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, 94296, 1); // Cracked Primal Egg
         if (msg == EQUIP_ERR_OK)
-            player->StoreNewItem(dest, 94296, true, GenerateItemRandomPropertyId(94296));
+            player->StoreNewItem(dest, 94296, true, GenerateItemRandomBonusListId(94296));
 
         return true;
     }
@@ -448,7 +446,7 @@ public:
         ItemPosCountVec dest;
         uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, 137608, 1); // Growling Sac
         if (msg == EQUIP_ERR_OK)
-            player->StoreNewItem(dest, 137608, true, GenerateItemRandomPropertyId(137608));
+            player->StoreNewItem(dest, 137608, true, GenerateItemRandomBonusListId(137608));
 
         return true;
     }

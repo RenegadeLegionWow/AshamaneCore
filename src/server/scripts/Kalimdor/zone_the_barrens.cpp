@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -103,7 +103,6 @@ enum Gilthares
     SAY_GIL_FREED               = 7,
 
     QUEST_FREE_FROM_HOLD        = 898,
-    AREA_MERCHANT_COAST         = 391,
     FACTION_ESCORTEE            = 232                       //guessed, possible not needed for this quest
 };
 
@@ -175,7 +174,7 @@ public:
                 return;
 
             //only aggro text if not player and only in this area
-            if (who->GetTypeId() != TYPEID_PLAYER && me->GetAreaId() == AREA_MERCHANT_COAST)
+            if (who->GetTypeId() != TYPEID_PLAYER && me->GetAreaId() == AREA_BARRENS_MERCHANT_COAST)
             {
                 //appears to be pretty much random (possible only if escorter not in combat with who yet?)
                 Talk(SAY_GIL_AGGRO, who);
@@ -435,8 +434,8 @@ public:
                             if (!creature)
                                 continue;
                             creature->setFaction(35);
-                            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                            creature->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                            creature->AddUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                             creature->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
                             AffrayChallenger[i] = creature->GetGUID();
                         }
@@ -472,8 +471,8 @@ public:
                             Creature* creature = ObjectAccessor::GetCreature(*me, AffrayChallenger[Wave]);
                             if (creature && (creature->IsAlive()))
                             {
-                                creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                                creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                                creature->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                                creature->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                                 creature->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
                                 creature->setFaction(14);
                                 creature->AI()->AttackStart(warrior);
@@ -504,8 +503,8 @@ public:
                             }
                             else if (creature) // Makes BIG WILL attackable.
                             {
-                                creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                                creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                                creature->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
+                                creature->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                                 creature->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
                                 creature->setFaction(14);
                                 creature->AI()->AttackStart(warrior);

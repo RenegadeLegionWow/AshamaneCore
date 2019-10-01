@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -35,7 +35,7 @@ public:
 
         if (triggerEvent == "Teleport")
         {
-            player->TeleportTo(TanaanZones::MapTanaan, 4537.817f, -2291.243f, 32.451f, 0.728175f);
+            player->TeleportTo(MAP_TANAAN_JUNGLE_INTRO, 4537.817f, -2291.243f, 32.451f, 0.728175f);
 
             // Ces phases seront ajoutées après la fin de la scene
             player->RemoveAurasDueToSpell(TanaanPhases::PhaseBlackrockSlaves);
@@ -312,7 +312,7 @@ struct npc_tanaan_yrel_summon : public FollowerAI
                     GetClosestCreatureWithEntry(me, TanaanCreatures::NpcLadyLiadrin, 50.0f)
                     || me->GetPositionX() < 4560.0f)
                 {
-                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
+                    me->AddUnitFlag(UNIT_FLAG_IMMUNE_TO_NPC);
                     SetFollowPaused(true);
 
                     m_Events.CancelEvent(eEvents::EventCheckStopFollow);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "ByteBuffer.h"
+#include "GameTime.h"
 #include "World.h"
 #include "Player.h"
 #include "Util.h"
@@ -186,7 +187,7 @@ void WardenMac::HandleHashResult(ByteBuffer &buff)
 
     _initialized = true;
 
-    _previousTimestamp = getMSTime();
+    _previousTimestamp = GameTime::GetGameTimeMS();
 }
 
 void WardenMac::RequestData()

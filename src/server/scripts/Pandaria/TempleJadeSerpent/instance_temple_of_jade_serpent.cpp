@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  * Copyright (C) 2016 Firestorm Servers <https://firestorm-servers.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -310,37 +310,28 @@ public:
             {
                 // Handle damage of water in wise mari combat
                 // Blizz handle that case with trigger and aura cast every 250 ms, anyway it's work
-                Map::PlayerList const& PlayerList = instance->GetPlayers();
-
-                if (!PlayerList.isEmpty())
+                DoOnPlayers([this](Player* player)
                 {
-                    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+                    Unit* wiseMari = ObjectAccessor::GetUnit(*player, wiseMariGUID);
+                    if (!wiseMari)
+                        return;
+
+                    if (!wiseMari->IsAlive() || !wiseMari->IsInCombat())
+                        return;
+
+                    // position : center of the wise mari's room
+                    Position pos = player->GetPosition();
+
+                    if ((player->GetDistance(roomCenter) < 20.00f && roomCenter.HasInArc((float)M_PI, &pos))
+                        || (!roomCenter.HasInArc((float)M_PI, &pos) && player->GetDistance(roomCenter) < 14.00f))
                     {
-                        Player* plr = i->GetSource();
-                        if (!plr)
-                            continue;
-
-                        Unit* wiseMari = ObjectAccessor::GetUnit(*plr, wiseMariGUID);
-                        if (!wiseMari)
-                            continue;
-
-                        if (!wiseMari->IsAlive() || !wiseMari->IsInCombat())
-                            continue;
-
-                        // position : center of the wise mari's room
-                        Position pos = plr->GetPosition();
-
-                        if ((plr->GetDistance(roomCenter) < 20.00f && roomCenter.HasInArc((float)M_PI, &pos))
-                            || (!roomCenter.HasInArc((float)M_PI, &pos) && plr->GetDistance(roomCenter) < 14.00f))
-                        {
-                            if (plr->GetPositionZ() > 174.05f && plr->GetPositionZ() < 174.23f)
-                                plr->CastSpell(plr, SPELL_CORRUPTED_WATERS, true);
-                        }
-
-                        if (plr->GetDistance(roomCenter) < 30.00f && plr->GetPositionZ() > 170.19f && plr->GetPositionZ() < 170.215f)
-                            plr->CastSpell(plr, SPELL_CORRUPTED_WATERS, true);
+                        if (player->GetPositionZ() > 174.05f && player->GetPositionZ() < 174.23f)
+                            player->CastSpell(player, SPELL_CORRUPTED_WATERS, true);
                     }
-                }
+
+                    if (player->GetDistance(roomCenter) < 30.00f && player->GetPositionZ() > 170.19f && player->GetPositionZ() < 170.215f)
+                        player->CastSpell(player, SPELL_CORRUPTED_WATERS, true);
+                });
                 waterDamageTimer = 250;
             }
             else
@@ -459,7 +450,7 @@ public:
                             return;
                         summoner->AddAura(SPELL_FIGMENT_OF_DOUBT_2, creature);
                         creature->SetDisplayId(summoner->GetDisplayId());
-                        creature->SetFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_MIRROR_IMAGE);
+                        creature->AddUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE);
                         summoner->CastSpell(creature, SPELL_COPY_WEAPON, false);
                         summoner->CastSpell(creature, SPELL_COPY_WEAPON_2, false);
 
@@ -524,7 +515,7 @@ public:
         {
             if (unit->ToCreature() && unit->ToCreature()->GetEntry() == CREATURE_MINION_OF_DOUBTS)
             {
-                if (unit->GetAreaId() == 6119) //AreaId of Liu Flameheart.
+                if (unit->GetAreaId() == AREA_TEMPLE_JADE_SERPENT_TERRACE_TWIN_DRAGONS)
                 {
                     ++countMinionDeads;
 
@@ -542,7 +533,7 @@ public:
                 creature->RemoveAura(SPELL_JADE_ESSENCE);
                 creature->CastSpell(creature, SPELL_TRANSFORM_VISUAL, false);
                 creature->RemoveAura(SPELL_POSSESSED_BY_SHA);
-                creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                creature->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
 
                 if (creature->GetAI())
                     creature->GetAI()->DoAction(0);
@@ -593,7 +584,7 @@ public:
                         Creature* c = instance->GetCreature(scroll);
                         if (c == nullptr)
                             return;
-                        c->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                        c->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     }
                     break;
                 case TYPE_SET_SUNS_SELECTABLE:
@@ -605,7 +596,7 @@ public:
                         if (!creature)
                             continue;
 
-                        creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                        creature->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                         if (creature->GetAI())
                             creature->GetAI()->DoAction(TYPE_SET_SUNS_SELECTABLE);
                     }
@@ -648,7 +639,7 @@ public:
                             creature->Respawn(true);
                             if (creature->GetAI())
                                 creature->GetAI()->DoAction(0);
-                            creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                            creature->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                         }
                         //Stop the fire tornados.
                         for (auto GUID : sunfires)
@@ -686,7 +677,7 @@ public:
                     sun_triggers.push_back(creature->GetGUID());
                     break;
                 case CREATURE_SUN:
-                    creature->SetFlag(UNIT_NPC_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                    creature->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     suns.push_back(creature->GetGUID());
                     break;
                 case CREATURE_ZAO_SUNSEEKER:
@@ -698,7 +689,7 @@ public:
                     break;
                 case CREATURE_SCROLL:
                     scroll = creature->GetGUID();
-                    creature->SetFlag(UNIT_NPC_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                    creature->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                     creature->CastSpell(creature, SPELL_SCROLL_FLOOR, false);
                     creature->CastSpell(creature, SPELL_JADE_ENERGY_2, false);
                     creature->CastSpell(creature, SPELL_GROW_LOW, false);
@@ -747,7 +738,7 @@ public:
                     sunfires.push_back(creature->GetGUID());
                     break;
                 default:
-                    if (creature->GetAreaId() == 6118)
+                    if (creature->GetAreaId() == AREA_TEMPLE_JADE_SERPENT_SCROLLKEEPER_SANCTUM)
                         mobs_liu.push_back(creature->GetGUID());
                     break;
             }
@@ -766,18 +757,10 @@ public:
                             go->SetGoState(GO_STATE_ACTIVE);
                         eventStatus_lorewalkter_stonestep = STATUS_LOREWALKER_STONESTEP_FINISH;
 
-                        Map::PlayerList const& PlayerList = instance->GetPlayers();
-
-                        if (!PlayerList.isEmpty())
+                        DoOnPlayers([](Player* player)
                         {
-                            for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
-                            {
-                                Player* plr = i->GetSource();
-                                if ( !plr)
-                                    continue;
-                                plr->CastSpell(plr, SPELL_LOREWALKER_ALACRITY, false);
-                            }
-                        }
+                            player->CastSpell(player, SPELL_LOREWALKER_ALACRITY, false);
+                        });
                     }
                 }
             }
@@ -793,41 +776,25 @@ public:
                             go->SetGoState(GO_STATE_ACTIVE);
                         eventStatus_lorewalkter_stonestep = STATUS_LOREWALKER_STONESTEP_FINISH;
 
-                        Map::PlayerList const& PlayerList = instance->GetPlayers();
-
-                        if (!PlayerList.isEmpty())
+                        DoOnPlayers([](Player* player)
                         {
-                            for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
-                            {
-                                Player* plr = i->GetSource();
-                                if ( !plr)
-                                    continue;
-                                plr->CastSpell(plr, SPELL_LOREWALKER_ALACRITY, false);
-                            }
-                        }
+                            player->CastSpell(player, SPELL_LOREWALKER_ALACRITY, false);
+                        });
                     }
                 }
             }
 
             if (unit->ToCreature() && unit->ToCreature()->GetEntry() == CREATURE_ZAO_SUNSEEKER)
             {
-                GameObject* go = instance->GetGameObject(door_lorewalker);
-                if (go != nullptr)
+                if (GameObject * go = instance->GetGameObject(door_lorewalker))
                     go->SetGoState(GO_STATE_ACTIVE);
+
                 eventStatus_lorewalkter_stonestep = STATUS_LOREWALKER_STONESTEP_FINISH;
 
-                Map::PlayerList const& PlayerList = instance->GetPlayers();
-
-                if (!PlayerList.isEmpty())
+                DoOnPlayers([](Player* player)
                 {
-                    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
-                    {
-                        Player* plr = i->GetSource();
-                        if ( !plr)
-                            continue;
-                        plr->CastSpell(plr, SPELL_LOREWALKER_ALACRITY, false);
-                    }
-                }
+                    player->CastSpell(player, SPELL_LOREWALKER_ALACRITY, false);
+                });
             }
 
             if (unit->ToCreature() && unit->ToCreature()->GetEntry() == CREATURE_SUN)
@@ -870,7 +837,7 @@ public:
                         unit->AddAura(SPELL_DRAW_SHA_2, c);
                         unit->AddAura(SPELL_DRAW_SHA_2, c);
                         c->CastSpell(unit, SPELL_DRAW_SHA_3, false);
-                        c->SetGuidValue(UNIT_DYNAMIC_FIELD_CHANNEL_OBJECTS, scroll);
+                        c->AddChannelObject(scroll);
                         c->SetChannelSpellId(42808);
                         c->ForcedDespawn(2000);
                     }
@@ -946,7 +913,7 @@ public:
                 creature->Respawn();
                 if (creature->GetAI())
                     creature->GetAI()->Reset();
-                creature->SetFlag(UNIT_NPC_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                creature->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                 creature->CastSpell(creature, SPELL_SCROLL_FLOOR, false);
                 creature->CastSpell(creature, SPELL_JADE_ENERGY_2, false);
                 creature->CastSpell(creature, SPELL_GROW_LOW, false);

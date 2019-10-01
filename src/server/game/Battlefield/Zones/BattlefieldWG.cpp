@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -567,7 +567,7 @@ void BattlefieldWG::OnBattleStart()
         // Update faction of relic, only attacker can click on
         relic->SetFaction(WintergraspFaction[GetAttackerTeam()]);
         // Set in use (not allow to click on before last door is broken)
-        relic->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
+        relic->AddFlag(GameObjectFlags(GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE));
         m_titansRelicGUID = relic->GetGUID();
     }
     else
@@ -785,17 +785,17 @@ uint8 BattlefieldWG::GetSpiritGraveyardId(uint32 areaId) const
     {
         case AREA_WINTERGRASP_FORTRESS:
             return BATTLEFIELD_WG_GY_KEEP;
-        case AREA_THE_SUNKEN_RING:
+        case AREA_WINTERGRASP_THE_SUNKEN_RING:
             return BATTLEFIELD_WG_GY_WORKSHOP_NE;
-        case AREA_THE_BROKEN_TEMPLATE:
+        case AREA_WINTERGRASP_THE_BROKEN_TEMPLATE:
             return BATTLEFIELD_WG_GY_WORKSHOP_NW;
-        case AREA_WESTPARK_WORKSHOP:
+        case AREA_WINTERGRASP_WESTPARK_WORKSHOP:
             return BATTLEFIELD_WG_GY_WORKSHOP_SW;
-        case AREA_EASTPARK_WORKSHOP:
+        case AREA_WINTERGRASP_EASTPARK_WORKSHOP:
             return BATTLEFIELD_WG_GY_WORKSHOP_SE;
-        case AREA_WINTERGRASP:
+        case ZONE_WINTERGRASP:
             return BATTLEFIELD_WG_GY_ALLIANCE;
-        case AREA_THE_CHILLED_QUAGMIRE:
+        case AREA_WINTERGRASP_THE_CHILLED_QUAGMIRE:
             return BATTLEFIELD_WG_GY_HORDE;
         default:
             TC_LOG_ERROR("bg.battlefield", "BattlefieldWG::GetSpiritGraveyardId: Unexpected Area Id %u", areaId);
@@ -954,7 +954,12 @@ void BattlefieldWG::HandleKill(Player* killer, Unit* victim)
         return;
 
     if (victim->GetTypeId() == TYPEID_PLAYER)
+    {
         HandlePromotion(killer, victim);
+
+        // Allow to Skin non-released corpse
+        victim->AddUnitFlag(UNIT_FLAG_SKINNABLE);
+    }
 
     /// @todoRecent PvP activity worldstate
 }
@@ -1120,10 +1125,10 @@ uint32 BattlefieldWG::GetData(uint32 data) const
     {
         // Used to determine when the phasing spells must be cast
         // See: SpellArea::IsFitToRequirements
-        case AREA_THE_SUNKEN_RING:
-        case AREA_THE_BROKEN_TEMPLATE:
-        case AREA_WESTPARK_WORKSHOP:
-        case AREA_EASTPARK_WORKSHOP:
+        case AREA_WINTERGRASP_THE_SUNKEN_RING:
+        case AREA_WINTERGRASP_THE_BROKEN_TEMPLATE:
+        case AREA_WINTERGRASP_WESTPARK_WORKSHOP:
+        case AREA_WINTERGRASP_EASTPARK_WORKSHOP:
             // Graveyards and Workshops are controlled by the same team.
             if (BfGraveyard const* graveyard = GetGraveyardById(GetSpiritGraveyardId(data)))
                 return graveyard->GetControlTeamId();
@@ -1476,7 +1481,7 @@ void BfWGGameObjectBuilding::Destroyed()
                     go->SetGoState(GO_STATE_ACTIVE);
             _wg->SetRelicInteractible(true);
             if (_wg->GetRelic())
-                _wg->GetRelic()->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE);
+                _wg->GetRelic()->RemoveFlag(GameObjectFlags(GO_FLAG_IN_USE | GO_FLAG_NOT_SELECTABLE));
             else
                 TC_LOG_ERROR("bg.battlefield.wg", "Titan Relic not found.");
             break;

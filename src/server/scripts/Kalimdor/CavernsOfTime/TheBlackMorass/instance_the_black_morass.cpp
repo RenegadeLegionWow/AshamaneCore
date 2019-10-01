@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -203,22 +203,15 @@ public:
                     {
                         //this may be completed further out in the post-event
                         TC_LOG_DEBUG("scripts", "Instance The Black Morass: Event completed.");
-                        Map::PlayerList const& players = instance->GetPlayers();
 
-                        if (!players.isEmpty())
+                        DoOnPlayers([](Player* player)
                         {
-                            for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
-                            {
-                                if (Player* player = itr->GetSource())
-                                {
-                                    if (player->GetQuestStatus(QUEST_OPENING_PORTAL) == QUEST_STATUS_INCOMPLETE)
-                                        player->AreaExploredOrEventHappens(QUEST_OPENING_PORTAL);
+                            if (player->GetQuestStatus(QUEST_OPENING_PORTAL) == QUEST_STATUS_INCOMPLETE)
+                                player->AreaExploredOrEventHappens(QUEST_OPENING_PORTAL);
 
-                                    if (player->GetQuestStatus(QUEST_MASTER_TOUCH) == QUEST_STATUS_INCOMPLETE)
-                                        player->AreaExploredOrEventHappens(QUEST_MASTER_TOUCH);
-                                }
-                            }
-                        }
+                            if (player->GetQuestStatus(QUEST_MASTER_TOUCH) == QUEST_STATUS_INCOMPLETE)
+                                player->AreaExploredOrEventHappens(QUEST_MASTER_TOUCH);
+                        });
                     }
 
                     m_auiEncounter[0] = data;
@@ -299,8 +292,8 @@ public:
                     TEMPSUMMON_CORPSE_DESPAWN, 0);
                 if (temp)
                 {
-                    temp->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                    temp->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                    temp->AddUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    temp->AddUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
 
                     if (Creature* boss = SummonedPortalBoss(temp))
                     {

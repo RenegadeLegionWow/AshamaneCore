@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 AshamaneProject <https://github.com/AshamaneProject>
+ * Copyright (C) 2017-2019 AshamaneProject <https://github.com/AshamaneProject>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -304,17 +304,12 @@ public:
                         case DONE:
                             DoRespawnGameObject(HeartOfWindGUID, 7*DAY);
 
-                            Map::PlayerList const &players = instance->GetPlayers();
-                            if (players.isEmpty())
-                                break;
-                            for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
+                            DoOnPlayers([](Player* player)
                             {
-                                if (Player* player = i->GetSource())
-                                {
-                                    player->GetAchievementMgr()->UpdateCriteria(CRITERIA_TYPE_KILL_CREATURE, 46753, 1);
-                                    player->ModifyCurrency(396, 70 * CURRENCY_PRECISION);
-                                }
-                            }
+                                player->GetAchievementMgr()->UpdateCriteria(CRITERIA_TYPE_KILL_CREATURE, 46753, 1);
+                                player->ModifyCurrency(396, 70 * CURRENCY_PRECISION);
+                            });
+
                             break;
                     }
                     Encounter[1] = data;
@@ -418,6 +413,7 @@ public:
         bool CheckAchivementStayChill()
         {
             uint32 spellid = GetSpellWindChill();
+
             Map::PlayerList const& players = instance->GetPlayers();
             if (!players.isEmpty())
             {

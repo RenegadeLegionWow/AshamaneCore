@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -154,6 +153,8 @@ class TC_GAME_API MotionMaster
             This method doesn't account for any movement done by the target. in other words, it only works if the target is stationary.
         */
         void MoveCloserAndStop(uint32 id, Unit* target, float distance);
+
+        void MoveAwayAndDespawn(float distance, uint32 msTimeToDespawn);
 
         // These two movement types should only be used with creatures having landing/takeoff animations
         void MoveLand(uint32 id, Position const& pos);

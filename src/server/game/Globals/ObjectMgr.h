@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,11 +24,13 @@
 #include "DatabaseEnvFwd.h"
 #include "GameObjectData.h"
 #include "ItemTemplate.h"
+#include "IteratorPair.h"
 #include "NPCHandler.h"
 #include "ObjectDefines.h"
 #include "ObjectGuid.h"
 #include "Position.h"
 #include "QuestDef.h"
+#include "RaceMask.h"
 #include "SharedDefines.h"
 #include "Trainer.h"
 #include "VehicleDefines.h"
@@ -620,10 +621,10 @@ struct PlayerInfo
 
 struct MailLevelReward
 {
-    MailLevelReward() : raceMask(0), mailTemplateId(0), senderEntry(0) { }
-    MailLevelReward(uint64 _raceMask, uint32 _mailTemplateId, uint32 _senderEntry) : raceMask(_raceMask), mailTemplateId(_mailTemplateId), senderEntry(_senderEntry) { }
+    MailLevelReward() : raceMask({ 0 }), mailTemplateId(0), senderEntry(0) { }
+    MailLevelReward(uint64 _raceMask, uint32 _mailTemplateId, uint32 _senderEntry) : raceMask({ _raceMask }), mailTemplateId(_mailTemplateId), senderEntry(_senderEntry) { }
 
-    uint64 raceMask;
+    Trinity::RaceMask<uint64> raceMask;
     uint32 mailTemplateId;
     uint32 senderEntry;
 };
@@ -754,6 +755,12 @@ typedef std::unordered_map<uint32, QuestPOIData> QuestPOIContainer;
 
 typedef std::array<std::unordered_map<uint32, QuestGreeting>, 2> QuestGreetingContainer;
 typedef std::array<std::unordered_map<uint32, QuestGreetingLocale>, 2> QuestGreetingLocaleContainer;
+
+struct WorldSafeLocsEntry
+{
+    uint32 ID = 0;
+    WorldLocation Loc;
+};
 
 struct GraveYardData
 {
@@ -940,6 +947,19 @@ struct PhaseAreaInfo
     ConditionContainer Conditions;
 };
 
+struct ClassAvailability
+{
+    uint8 ClassID = 0;
+    uint8 ActiveExpansionLevel = 0;
+    uint8 AccountExpansionLevel = 0;
+};
+
+struct RaceClassAvailability
+{
+    uint8 RaceID = 0;
+    std::vector<ClassAvailability> Classes;
+};
+
 struct RaceUnlockRequirement
 {
     uint8 Expansion;
@@ -1108,6 +1128,9 @@ class TC_GAME_API ObjectMgr
         void RemoveGraveYardLink(uint32 id, uint32 zoneId, uint32 team, bool persist = false);
         void LoadGraveyardZones();
         GraveYardData const* FindGraveYardData(uint32 id, uint32 zone) const;
+        void LoadWorldSafeLocs();
+        WorldSafeLocsEntry const* GetWorldSafeLoc(uint32 id) const;
+        Trinity::IteratorPair<std::unordered_map<uint32, WorldSafeLocsEntry>::const_iterator> GetWorldSafeLocs() const;
 
         AreaTriggerTeleportStruct const* GetAreaTrigger(int64 trigger) const;
         AccessRequirement const* GetAccessRequirement(uint32 mapid, Difficulty difficulty) const;
@@ -1335,8 +1358,8 @@ class TC_GAME_API ObjectMgr
 
         void LoadInstanceDifficultyMultiplier();
 
-        std::set<uint32> GetItemBonusTree(uint32 ItemID, uint32 itemBonusTreeMod, uint32 ownerLevel, int32 levelBonus, int32 needLevel);
-        std::set<uint32> GetItemBonusForLevel(uint32 itemID, uint32 itemBonusTreeMod, int32 needLevel);
+        std::set<uint32> GetItemBonusTree(uint32 ItemID, ItemContext itemContext, uint32 ownerLevel, int32 levelBonus, int32 needLevel);
+        std::set<uint32> GetItemBonusForLevel(uint32 itemID, ItemContext itemContext, int32 needLevel);
         uint32 GetItemBonusLevel(uint32 ItemID, uint32 ownerLevel, uint8& quality, std::set<uint32>& bonusListIDs);
 
         void InitializeQueriesData(QueryDataGroup mask);
@@ -1368,7 +1391,9 @@ class TC_GAME_API ObjectMgr
         template<HighGuid type>
         inline ObjectGuidGeneratorBase& GetGenerator()
         {
-            static_assert(ObjectGuidTraits<type>::Global || ObjectGuidTraits<type>::RealmSpecific, "Only global guid can be generated in ObjectMgr context");
+            static_assert(ObjectGuidTraits<type>::SequenceSource.HasFlag(ObjectGuidSequenceSource::Global)
+                || ObjectGuidTraits<type>::SequenceSource.HasFlag(ObjectGuidSequenceSource::Realm),
+                "Only global guid can be generated in ObjectMgr context");
             return GetGuidSequenceGenerator<type>();
         }
 
@@ -1385,14 +1410,14 @@ class TC_GAME_API ObjectMgr
 
         ExclusiveQuestGroups mExclusiveQuestGroups;
 
-        MailLevelReward const* GetMailLevelReward(uint8 level, uint64 raceMask)
+        MailLevelReward const* GetMailLevelReward(uint8 level, uint8 race)
         {
             MailLevelRewardContainer::const_iterator map_itr = _mailLevelRewardStore.find(level);
             if (map_itr == _mailLevelRewardStore.end())
                 return nullptr;
 
             for (auto const& mailLevelReward : map_itr->second)
-                if (mailLevelReward.raceMask & raceMask)
+                if (mailLevelReward.raceMask.HasRace(race))
                     return &mailLevelReward;
 
             return nullptr;
@@ -1662,14 +1687,8 @@ class TC_GAME_API ObjectMgr
             return nullptr;
         }
 
-        std::unordered_map<uint8, uint8> const& GetClassExpansionRequirements() const { return _classExpansionRequirementStore; }
-        uint8 GetClassExpansionRequirement(uint8 class_) const
-        {
-            auto itr = _classExpansionRequirementStore.find(class_);
-            if (itr != _classExpansionRequirementStore.end())
-                return itr->second;
-            return EXPANSION_CLASSIC;
-        }
+        std::vector<RaceClassAvailability> const& GetClassExpansionRequirements() const { return _classExpansionRequirementStore; }
+        ClassAvailability const* GetClassExpansionRequirement(uint8 raceId, uint8 classId) const;
 
         SceneTemplate const* GetSceneTemplate(uint32 sceneId) const
         {
@@ -1730,6 +1749,7 @@ class TC_GAME_API ObjectMgr
         AreaTriggerScriptContainer _areaTriggerScriptStore;
         AccessRequirementContainer _accessRequirementStore;
         DungeonEncounterContainer _dungeonEncounterStore;
+        std::unordered_map<uint32, WorldSafeLocsEntry> _worldSafeLocs;
 
         RepRewardRateContainer _repRewardRateStore;
         RepOnKillContainer _repOnKillStore;
@@ -1858,7 +1878,7 @@ class TC_GAME_API ObjectMgr
         std::set<uint32> _hasDifficultyEntries[MAX_CREATURE_DIFFICULTIES]; // already loaded creatures with difficulty 1 values, used in CheckCreatureTemplate
 
         std::unordered_map<uint8, RaceUnlockRequirement> _raceUnlockRequirementStore;
-        std::unordered_map<uint8, uint8> _classExpansionRequirementStore;
+        std::vector<RaceClassAvailability> _classExpansionRequirementStore;
         RealmNameContainer _realmNameStore;
 
         SceneTemplateContainer _sceneTemplateStore;

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -351,6 +350,15 @@ void MotionMaster::MoveCloserAndStop(uint32 id, Unit* target, float distance)
     }
 }
 
+void MotionMaster::MoveAwayAndDespawn(float distance, uint32 msTimeToDespawn)
+{
+    if (_owner->ToCreature())
+    {
+        MovePoint(1, _owner->ToCreature()->GetPositionWithDistInFront(distance), true);
+        _owner->ToCreature()->DespawnOrUnsummon(msTimeToDespawn);
+    }
+}
+
 void MotionMaster::MoveLand(uint32 id, Position const& pos)
 {
     float x, y, z;
@@ -466,11 +474,11 @@ void MotionMaster::MoveJumpTo(float angle, float speedXY, float speedZ)
 
 void MotionMaster::MoveJump(uint32 locEntry, float speedXY, float speedZ, uint32 id /*= EVENT_JUMP*/)
 {
-    WorldSafeLocsEntry const* safeLoc = sWorldSafeLocsStore.LookupEntry(locEntry);
+    WorldSafeLocsEntry const* safeLoc = sObjectMgr->GetWorldSafeLoc(locEntry);
     if (safeLoc == nullptr)
         return;
 
-    MoveJump(safeLoc->Loc.X, safeLoc->Loc.Y, safeLoc->Loc.Z, speedXY, speedZ, safeLoc->Facing, id);
+    MoveJump(safeLoc->Loc.GetPositionX(), safeLoc->Loc.GetPositionY(), safeLoc->Loc.GetPositionZ(), speedXY, speedZ, safeLoc->Loc.GetOrientation(), id);
 }
 
 void MotionMaster::MoveJump(float x, float y, float z, float o, float speedXY, float speedZ, uint32 id /*= EVENT_JUMP*/, bool hasOrientation /* = false*/,

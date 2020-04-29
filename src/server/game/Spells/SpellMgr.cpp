@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +20,7 @@
 #include "BattlefieldWG.h"
 #include "BattlegroundMgr.h"
 #include "Chat.h"
+#include "Containers.h"
 #include "DB2Stores.h"
 #include "DatabaseEnv.h"
 #include "GameEventMgr.h"
@@ -627,7 +627,7 @@ bool SpellArea::IsFitToRequirements(Player const* player, uint32 newZone, uint32
             return false;
 
     if (raceMask)                                // is not expected race
-        if (!player || !(raceMask & player->getRaceMask()))
+        if (!player || !raceMask.HasRace(player->getRace()))
             return false;
 
     if (areaId)                                  // is not in expected zone
@@ -2084,7 +2084,7 @@ void SpellMgr::LoadSpellAreas()
         spellArea.questEnd            = fields[5].GetUInt32();
         spellArea.auraSpell           = fields[6].GetInt32();
         spellArea.teamId              = fields[7].GetInt8();
-        spellArea.raceMask            = fields[8].GetUInt64();
+        spellArea.raceMask.RawValue   = fields[8].GetUInt64();
         spellArea.gender              = Gender(fields[9].GetUInt8());
         spellArea.flags               = fields[10].GetUInt8();
 
@@ -2211,9 +2211,9 @@ void SpellMgr::LoadSpellAreas()
             continue;
         }
 
-        if (spellArea.raceMask && (spellArea.raceMask & RACEMASK_ALL_PLAYABLE) == 0)
+        if (spellArea.raceMask && (spellArea.raceMask.RawValue & RACEMASK_ALL_PLAYABLE) == 0)
         {
-            TC_LOG_ERROR("sql.sql", "The spell %u listed in `spell_area` has wrong race mask (" UI64FMTD ") requirement.", spell, spellArea.raceMask);
+            TC_LOG_ERROR("sql.sql", "The spell %u listed in `spell_area` has wrong race mask (" UI64FMTD ") requirement.", spell, spellArea.raceMask.RawValue);
             continue;
         }
 
@@ -2263,6 +2263,12 @@ void SpellMgr::LoadSpellInfoStore()
     mSpellInfoMap.resize(sSpellNameStore.GetNumRows(), NULL);
     std::unordered_map<uint32, SpellInfoLoadHelper> loadData;
 
+    std::unordered_map<int32, BattlePetSpeciesEntry const*> battlePetSpeciesByCreature;
+    std::unordered_map<uint32, BattlePetSpeciesEntry const*> battlePetSpeciesBySpellId;
+    for (BattlePetSpeciesEntry const* battlePetSpecies : sBattlePetSpeciesStore)
+        if (battlePetSpecies->CreatureID)
+            battlePetSpeciesByCreature[battlePetSpecies->CreatureID] = battlePetSpecies;
+
     std::unordered_map<int32, SpellEffectEntryMap> effectsBySpell;
     std::unordered_map<uint32, SpellVisualMap> visualsBySpell;
 
@@ -2279,6 +2285,12 @@ void SpellMgr::LoadSpellInfoStore()
             effectsForDifficulty.resize(std::size_t(effect->EffectIndex + 1));
 
         effectsForDifficulty[effect->EffectIndex] = effect;
+
+        if (effect->Effect == SPELL_EFFECT_SUMMON)
+            if (SummonPropertiesEntry const* summonProperties = sSummonPropertiesStore.LookupEntry(effect->EffectMiscValue[1]))
+                if (summonProperties->Slot == SUMMON_SLOT_MINIPET && summonProperties->Flags & SUMMON_PROP_FLAG_COMPANION)
+                    if (BattlePetSpeciesEntry const* battlePetSpecies = Trinity::Containers::MapGetValuePtr(battlePetSpeciesByCreature, effect->EffectMiscValue[0]))
+                        mBattlePets[effect->SpellID] = battlePetSpecies;
     }
 
     for (SpellAuraOptionsEntry const* auraOptions : sSpellAuraOptionsStore)
@@ -3928,9 +3940,9 @@ void SpellMgr::LoadSpellInfoCorrections()
     }
 
     if (SummonPropertiesEntry* properties = const_cast<SummonPropertiesEntry*>(sSummonPropertiesStore.LookupEntry(121)))
-        properties->Title = SUMMON_TYPE_TOTEM;
+        properties->Title = AsUnderlyingType(SummonTitle::Totem);
     if (SummonPropertiesEntry* properties = const_cast<SummonPropertiesEntry*>(sSummonPropertiesStore.LookupEntry(647))) // 52893
-        properties->Title = SUMMON_TYPE_TOTEM;
+        properties->Title = AsUnderlyingType(SummonTitle::Totem);
     if (SummonPropertiesEntry* properties = const_cast<SummonPropertiesEntry*>(sSummonPropertiesStore.LookupEntry(628))) // Hungry Plaguehound
         properties->Control = SUMMON_CATEGORY_PET;
 
@@ -4076,4 +4088,9 @@ uint32 SpellMgr::GetModelForTotem(uint32 spellId, uint8 race) const
 
     TC_LOG_ERROR("spells", "Spell %u with RaceID (%u) have no totem model data defined, set to default model.", spellId, race);
     return 0;
+}
+
+BattlePetSpeciesEntry const* SpellMgr::GetBattlePetSpecies(uint32 spellId) const
+{
+    return Trinity::Containers::MapGetValuePtr(mBattlePets, spellId);
 }

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -2056,36 +2055,36 @@ void ScriptMgr::OnWeatherUpdate(Weather* weather, uint32 diff)
     tmpscript->OnUpdate(weather, diff);
 }
 
-void ScriptMgr::OnAuctionAdd(AuctionHouseObject* ah, AuctionEntry* entry)
+void ScriptMgr::OnAuctionAdd(AuctionHouseObject* ah, AuctionPosting* auction)
 {
     ASSERT(ah);
-    ASSERT(entry);
+    ASSERT(auction);
 
-    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionAdd(ah, entry);
+    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionAdd(ah, auction);
 }
 
-void ScriptMgr::OnAuctionRemove(AuctionHouseObject* ah, AuctionEntry* entry)
+void ScriptMgr::OnAuctionRemove(AuctionHouseObject* ah, AuctionPosting* auction)
 {
     ASSERT(ah);
-    ASSERT(entry);
+    ASSERT(auction);
 
-    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionRemove(ah, entry);
+    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionRemove(ah, auction);
 }
 
-void ScriptMgr::OnAuctionSuccessful(AuctionHouseObject* ah, AuctionEntry* entry)
+void ScriptMgr::OnAuctionSuccessful(AuctionHouseObject* ah, AuctionPosting* auction)
 {
     ASSERT(ah);
-    ASSERT(entry);
+    ASSERT(auction);
 
-    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionSuccessful(ah, entry);
+    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionSuccessful(ah, auction);
 }
 
-void ScriptMgr::OnAuctionExpire(AuctionHouseObject* ah, AuctionEntry* entry)
+void ScriptMgr::OnAuctionExpire(AuctionHouseObject* ah, AuctionPosting* auction)
 {
     ASSERT(ah);
-    ASSERT(entry);
+    ASSERT(auction);
 
-    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionExpire(ah, entry);
+    FOREACH_SCRIPT(AuctionHouseScript)->OnAuctionExpire(ah, auction);
 }
 
 bool ScriptMgr::OnConditionCheck(Condition const* condition, ConditionSourceInfo& sourceInfo)

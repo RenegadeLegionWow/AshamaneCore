@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -66,6 +65,7 @@ struct SummonPropertiesEntry;
 class Transport;
 enum Difficulty : uint8;
 enum WeatherState : uint32;
+enum class ItemContext : uint8;
 
 namespace Trinity { struct ObjectUpdater; }
 namespace G3D { class Plane; }
@@ -396,8 +396,9 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
 
         // have meaning only for instanced map (that have set real difficulty)
         Difficulty GetDifficultyID() const { return Difficulty(i_spawnMode); }
+        void SetDifficultyID(Difficulty difficulty) { i_spawnMode = Difficulty(difficulty); }
         MapDifficultyEntry const* GetMapDifficulty() const;
-        uint8 GetDifficultyLootItemContext() const;
+        ItemContext GetDifficultyLootItemContext() const;
         uint8 GetEncounterDifficultyMask() const;
 
         uint32 GetId() const;
@@ -567,7 +568,7 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         template<HighGuid high>
         inline ObjectGuid::LowType GenerateLowGuid()
         {
-            static_assert(ObjectGuidTraits<high>::MapSpecific, "Only map specific guid can be generated in Map context");
+            static_assert(ObjectGuidTraits<high>::SequenceSource.HasFlag(ObjectGuidSequenceSource::Map), "Only map specific guid can be generated in Map context");
             return GetGuidSequenceGenerator<high>().Generate();
         }
 

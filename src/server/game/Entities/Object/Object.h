@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -119,6 +118,12 @@ namespace UF
     {
         setter.Clear();
     }
+
+    template<typename T>
+    inline void RemoveOptionalUpdateFieldValue(OptionalUpdateFieldSetter<T>& setter)
+    {
+        setter.RemoveValue();
+    }
 }
 
 class TC_GAME_API Object
@@ -153,11 +158,15 @@ class TC_GAME_API Object
 
         void BuildValuesUpdateBlockForPlayer(UpdateData* data, Player const* target) const;
         void BuildValuesUpdateBlockForPlayerWithFlag(UpdateData* data, UF::UpdateFieldFlag flags, Player const* target) const;
+        void BuildDestroyUpdateBlock(UpdateData* data) const;
         void BuildOutOfRangeUpdateBlock(UpdateData* data) const;
+        ByteBuffer PrepareValuesUpdateBuffer() const;
 
         virtual void DestroyForPlayer(Player* target) const;
 
         virtual void ClearUpdateMask(bool remove);
+
+        virtual std::string GetNameForLocaleIdx(LocaleConstant locale) const = 0;
 
         virtual bool hasQuest(uint32 /* quest_id */) const { return false; }
         virtual bool hasInvolvedQuest(uint32 /* quest_id */) const { return false; }
@@ -271,6 +280,13 @@ class TC_GAME_API Object
             UF::ClearDynamicUpdateFieldValues(setter);
         }
 
+        template<typename T>
+        void RemoveOptionalUpdateFieldValue(UF::OptionalUpdateFieldSetter<T> setter)
+        {
+            AddToObjectUpdateIfNeeded();
+            UF::RemoveOptionalUpdateFieldValue(setter);
+        }
+
         // stat system helpers
         template<typename T>
         void SetUpdateFieldStatValue(UF::UpdateFieldSetter<T> setter, typename UF::UpdateFieldSetter<T>::ValueType value)
@@ -313,8 +329,11 @@ class TC_GAME_API Object
         virtual UF::UpdateFieldFlag GetUpdateFieldFlagsFor(Player const* target) const;
         virtual void BuildValuesCreate(ByteBuffer* data, Player const* target) const = 0;
         virtual void BuildValuesUpdate(ByteBuffer* data, Player const* target) const = 0;
+
+    public:
         virtual void BuildValuesUpdateWithFlag(ByteBuffer* data, UF::UpdateFieldFlag flags, Player const* target) const;
 
+    protected:
         uint16 m_objectType;
 
         TypeID m_objectTypeId;
@@ -431,9 +450,9 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
         InstanceScript* GetInstanceScript() const;
 
         std::string const& GetName() const { return m_name; }
-        void SetName(std::string const& newname) { m_name=newname; }
+        void SetName(std::string newname) { m_name = std::move(newname); }
 
-        virtual std::string const& GetNameForLocaleIdx(LocaleConstant /*locale_idx*/) const { return m_name; }
+        std::string GetNameForLocaleIdx(LocaleConstant /*locale*/) const override { return m_name; }
 
         float GetDistance(WorldObject const* obj) const;
         float GetDistance(Position const &pos) const;

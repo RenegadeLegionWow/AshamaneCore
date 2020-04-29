@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,6 +21,7 @@
 #include "Define.h"
 #include "ItemTemplate.h"
 #include "AuctionHouseBot.h"
+#include <array>
 
 struct ItemToSell
 {
@@ -29,7 +30,7 @@ struct ItemToSell
 };
 
 typedef std::vector<ItemToSell> ItemsToSellArray;
-typedef std::vector<std::vector<uint32>> AllItemsArray;
+typedef std::array<std::array<uint32, MAX_ITEM_CLASS>, MAX_ITEM_QUALITY> AllItemsArray;
 
 struct SellerItemClassInfo
 {
@@ -141,7 +142,7 @@ private:
     void LoadSellerValues(SellerConfiguration& config);
     uint32 SetStat(SellerConfiguration& config);
     bool GetItemsToSell(SellerConfiguration& config, ItemsToSellArray& itemsToSellArray, AllItemsArray const& addedItem);
-    void SetPricesOfItem(ItemTemplate const* itemProto, SellerConfiguration& config, uint32& buyp, uint32& bidp, uint32 stackcnt);
+    void SetPricesOfItem(ItemTemplate const* itemProto, SellerConfiguration& config, uint32& buyout, uint32& bid, uint32 stackcnt);
     uint32 GetStackSizeForItem(ItemTemplate const* itemProto, SellerConfiguration& config) const;
     void LoadItemsQuantity(SellerConfiguration& config);
     static uint32 GetBuyModifier(ItemTemplate const* prototype);

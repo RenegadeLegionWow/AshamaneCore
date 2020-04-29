@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -57,6 +56,7 @@
 #include "WorldPacket.h"
 #include <G3D/g3dmath.h>
 #include "DB2Stores.h"
+#include <sstream>
 
 TrainerSpell const* TrainerSpellData::Find(uint32 spell_id) const
 {
@@ -563,7 +563,7 @@ bool Creature::UpdateEntry(uint32 entry, CreatureData const* data /*= nullptr*/,
 
     SetDynamicFlags(dynamicFlags);
 
-    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StateAnimID), sAnimationDataStore.GetNumRows());
+    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::StateAnimID), sDB2Manager.GetEmptyAnimStateID());
 
     SetBaseAttackTime(BASE_ATTACK,   cInfo->BaseAttackTime);
     SetBaseAttackTime(OFF_ATTACK,    cInfo->BaseAttackTime);
@@ -1422,7 +1422,20 @@ void Creature::SaveToDB(uint32 mapid, std::vector<Difficulty> const& spawnDiffic
     stmt->setUInt64(index++, m_spawnId);
     stmt->setUInt32(index++, GetEntry());
     stmt->setUInt16(index++, uint16(mapid));
-    stmt->setString(index++, StringJoin(data.spawnDifficulties, ","));
+    stmt->setString(index++, [&data]() -> std::string
+    {
+        if (data.spawnDifficulties.empty())
+            return "";
+
+        std::ostringstream os;
+        auto itr = data.spawnDifficulties.begin();
+        os << int32(*itr++);
+
+        for (; itr != data.spawnDifficulties.end(); ++itr)
+            os << ',' << int32(*itr);
+
+        return os.str();
+    }());
     stmt->setUInt32(index++, data.phaseId);
     stmt->setUInt32(index++, data.phaseGroup);
     stmt->setUInt32(index++, displayId);
@@ -1685,6 +1698,7 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
     m_creatureData = data;
     m_respawnradius = data->spawndist;
     m_respawnDelay = data->spawntimesecs;
+
     if (!Create(map->GenerateLowGuid<HighGuid::Creature>(), map, data->id, data->posX, data->posY, data->posZ, data->orientation, data, 0))
         return false;
 
@@ -1694,6 +1708,9 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
     m_deathState = ALIVE;
 
     m_respawnTime = GetMap()->GetCreatureRespawnTime(m_spawnId);
+
+    if (data->corpsetimesecs >= 0)
+        m_corpseDelay = data->corpsetimesecs;
 
     // Is the creature script objecting to us spawning? If yes, delay by one second (then re-check in ::Update)
     if (!m_respawnTime && !sScriptMgr->CanSpawn(spawnId, GetEntry(), GetCreatureTemplate(), GetCreatureData(), map))
@@ -3011,18 +3028,12 @@ TrainerSpellData const* Creature::GetTrainerSpells() const
 }
 
 // overwrite WorldObject function for proper name localization
-std::string const & Creature::GetNameForLocaleIdx(LocaleConstant loc_idx) const
+std::string Creature::GetNameForLocaleIdx(LocaleConstant locale) const
 {
-    if (loc_idx != DEFAULT_LOCALE)
-    {
-        uint8 uloc_idx = uint8(loc_idx);
-        CreatureLocale const* cl = sObjectMgr->GetCreatureLocale(GetEntry());
-        if (cl)
-        {
-            if (cl->Name.size() > uloc_idx && !cl->Name[uloc_idx].empty())
-                return cl->Name[uloc_idx];
-        }
-    }
+    if (locale != DEFAULT_LOCALE)
+        if (CreatureLocale const* cl = sObjectMgr->GetCreatureLocale(GetEntry()))
+            if (cl->Name.size() > locale && !cl->Name[locale].empty())
+                return cl->Name[locale];
 
     return GetName();
 }

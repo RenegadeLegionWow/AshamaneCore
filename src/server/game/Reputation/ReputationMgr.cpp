@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -93,12 +92,12 @@ int32 ReputationMgr::GetBaseReputation(FactionEntry const* factionEntry) const
     if (!factionEntry)
         return 0;
 
-    uint64 raceMask = _player->getRaceMask();
+    uint8 race = _player->getRace();
     uint32 classMask = _player->getClassMask();
     for (int i=0; i < 4; i++)
     {
-        if ((factionEntry->ReputationRaceMask[i] & raceMask  ||
-            (factionEntry->ReputationRaceMask[i] == 0  &&
+        if ((factionEntry->ReputationRaceMask[i].HasRace(race) ||
+            (!factionEntry->ReputationRaceMask[i] &&
              factionEntry->ReputationClassMask[i] != 0)) &&
             (factionEntry->ReputationClassMask[i] & classMask ||
              factionEntry->ReputationClassMask[i] == 0))
@@ -152,12 +151,12 @@ uint32 ReputationMgr::GetDefaultStateFlags(FactionEntry const* factionEntry) con
     if (!factionEntry)
         return 0;
 
-    uint64 raceMask = _player->getRaceMask();
+    uint8 race = _player->getRace();
     uint32 classMask = _player->getClassMask();
     for (int i=0; i < 4; i++)
     {
-        if ((factionEntry->ReputationRaceMask[i] & raceMask  ||
-            (factionEntry->ReputationRaceMask[i] == 0  &&
+        if ((factionEntry->ReputationRaceMask[i].HasRace(race) ||
+            (!factionEntry->ReputationRaceMask[i] &&
              factionEntry->ReputationClassMask[i] != 0)) &&
             (factionEntry->ReputationClassMask[i] & classMask ||
              factionEntry->ReputationClassMask[i] == 0))
@@ -397,7 +396,7 @@ void ReputationMgr::SetVisible(FactionTemplateEntry const* factionTemplateEntry)
 
     if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplateEntry->Faction))
         // Never show factions of the opposing team
-        if (!(factionEntry->ReputationRaceMask[1] & _player->getRaceMask() && factionEntry->ReputationBase[1] == Reputation_Bottom))
+        if (!(factionEntry->ReputationRaceMask[1].HasRace(_player->getRace()) && factionEntry->ReputationBase[1] == Reputation_Bottom))
             SetVisible(factionEntry);
 }
 

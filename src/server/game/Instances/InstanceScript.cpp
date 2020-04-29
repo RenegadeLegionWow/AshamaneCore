@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -868,6 +867,23 @@ void InstanceScript::DoPlayConversation(uint32 conversationId)
     });
 }
 
+void InstanceScript::DoDelayedConversation(uint32 delay, uint32 conversationId)
+{
+    DoOnPlayers([delay, conversationId](Player* player)
+    {
+        player->AddDelayedConversation(delay, conversationId);
+    });
+}
+
+void InstanceScript::DoAddItemByClassOnPlayers(uint8 classId, uint32 itemId, uint32 count)
+{
+    DoOnPlayers([classId, itemId, count](Player* player)
+    {
+        if (player->getClass() == classId)
+            player->AddItem(itemId, count);
+    });
+}
+
 void InstanceScript::DoSendScenarioEvent(uint32 eventId)
 {
     if (!instance->GetPlayers().isEmpty())
@@ -890,6 +906,16 @@ void InstanceScript::DoAddAuraOnPlayers(uint32 spell)
     DoOnPlayers([spell](Player* player)
     {
         player->AddAura(spell, player);
+    });
+}
+
+// Do combat stop on all players in instance
+void InstanceScript::DoCombatStopOnPlayers()
+{
+    DoOnPlayers([](Player* player)
+    {
+        if (player->IsInCombat())
+            player->CombatStop();
     });
 }
 
@@ -1188,8 +1214,8 @@ void InstanceScript::StartChallengeMode(uint8 level)
 
     // Tp back all players to begin
     Position entranceLocation;
-    if (WorldSafeLocsEntry const* entranceSafeLocEntry = sWorldSafeLocsStore.LookupEntry(GetEntranceLocation()))
-        entranceLocation.Relocate(entranceSafeLocEntry->Loc.X, entranceSafeLocEntry->Loc.Y, entranceSafeLocEntry->Loc.Z, entranceSafeLocEntry->Facing);
+    if (WorldSafeLocsEntry const* entranceSafeLocEntry = sObjectMgr->GetWorldSafeLoc(GetEntranceLocation()))
+        entranceLocation.Relocate(entranceSafeLocEntry->Loc);
     else if (AreaTriggerTeleportStruct const* areaTrigger = sObjectMgr->GetMapEntranceTrigger(instance->GetId()))
         entranceLocation.Relocate(areaTrigger->target_X, areaTrigger->target_Y, areaTrigger->target_Z, areaTrigger->target_Orientation);
     DoNearTeleportPlayers(entranceLocation);

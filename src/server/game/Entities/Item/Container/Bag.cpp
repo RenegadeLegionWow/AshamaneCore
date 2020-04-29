@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -67,7 +66,7 @@ void Bag::RemoveFromWorld()
     Item::RemoveFromWorld();
 }
 
-bool Bag::Create(ObjectGuid::LowType guidlow, uint32 itemid, Player const* owner)
+bool Bag::Create(ObjectGuid::LowType guidlow, uint32 itemid, ItemContext context, Player const* owner)
 {
     ItemTemplate const* itemProto = sObjectMgr->GetItemTemplate(itemid);
 
@@ -90,6 +89,7 @@ bool Bag::Create(ObjectGuid::LowType guidlow, uint32 itemid, Player const* owner
     SetUpdateFieldValue(m_values.ModifyValue(&Item::m_itemData).ModifyValue(&UF::ItemData::MaxDurability), itemProto->MaxDurability);
     SetDurability(itemProto->MaxDurability);
     SetCount(1);
+    SetContext(context);
 
     // Setting the number of Slots the Container has
     SetBagSize(itemProto->GetContainerSlots());
@@ -210,6 +210,41 @@ void Bag::BuildValuesUpdate(ByteBuffer* data, Player const* target) const
         m_containerData->WriteUpdate(*data, flags, this, target);
 
     data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
+}
+
+void Bag::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
+    UF::ItemData::Mask const& requestedItemMask, UF::ContainerData::Mask const& requestedContainerMask, Player const* target) const
+{
+    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
+    UpdateMask<NUM_CLIENT_OBJECT_TYPES> valuesMask;
+    if (requestedObjectMask.IsAnySet())
+        valuesMask.Set(TYPEID_OBJECT);
+
+    UF::ItemData::Mask itemMask = requestedItemMask;
+    m_itemData->FilterDisallowedFieldsMaskForFlag(itemMask, flags);
+    if (itemMask.IsAnySet())
+        valuesMask.Set(TYPEID_ITEM);
+
+    if (requestedContainerMask.IsAnySet())
+        valuesMask.Set(TYPEID_CONTAINER);
+
+    ByteBuffer buffer = PrepareValuesUpdateBuffer();
+    std::size_t sizePos = buffer.wpos();
+    buffer << uint32(0);
+    buffer << uint32(valuesMask.GetBlock(0));
+
+    if (valuesMask[TYPEID_OBJECT])
+        m_objectData->WriteUpdate(buffer, requestedObjectMask, true, this, target);
+
+    if (valuesMask[TYPEID_ITEM])
+        m_itemData->WriteUpdate(buffer, itemMask, true, this, target);
+
+    if (valuesMask[TYPEID_CONTAINER])
+        m_containerData->WriteUpdate(buffer, requestedContainerMask, true, this, target);
+
+    buffer.put<uint32>(sizePos, buffer.wpos() - sizePos - 4);
+
+    data->AddUpdateBlock(buffer);
 }
 
 void Bag::ClearUpdateMask(bool remove)

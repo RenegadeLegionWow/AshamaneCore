@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -374,7 +373,7 @@ void Guild::BankTab::LoadFromDB(Field* fields)
 
 bool Guild::BankTab::LoadItemFromDB(Field* fields)
 {
-    uint8 slotId = fields[46].GetUInt8();
+    uint8 slotId = fields[45].GetUInt8();
     ObjectGuid::LowType itemGuid = fields[0].GetUInt64();
     uint32 itemEntry = fields[1].GetUInt32();
     if (slotId >= GUILD_BANK_MAX_SLOTS)
@@ -1399,7 +1398,7 @@ void Guild::SendGuildRankInfo(WorldSession* session) const
 
         WorldPackets::Guild::GuildRankData rankData;
 
-        rankData.RankID = uint32(rankInfo->GetId());
+        rankData.RankID = rankInfo->GetId();
         rankData.RankOrder = uint32(i);
         rankData.Flags = rankInfo->GetRights();
         rankData.WithdrawGoldLimit = (rankInfo->GetId() == GR_GUILDMASTER ? (-1) : int32(rankInfo->GetBankMoneyPerDay() / GOLD));
@@ -2249,6 +2248,29 @@ void Guild::SendLoginInfo(WorldSession* session)
     member->AddFlag(GUILDMEMBER_STATUS_ONLINE);
 }
 
+void Guild::SendEventAwayChanged(ObjectGuid const& memberGuid, bool afk, bool dnd)
+{
+    Member* member = GetMember(memberGuid);
+    if (!member)
+        return;
+
+    if (afk)
+        member->AddFlag(GUILDMEMBER_STATUS_AFK);
+    else
+        member->RemFlag(GUILDMEMBER_STATUS_AFK);
+
+    if (dnd)
+        member->AddFlag(GUILDMEMBER_STATUS_DND);
+    else
+        member->RemFlag(GUILDMEMBER_STATUS_DND);
+
+    WorldPackets::Guild::GuildEventAwayChange awayChange;
+    awayChange.Guid = memberGuid;
+    awayChange.AFK = afk;
+    awayChange.DND = dnd;
+    BroadcastPacket(awayChange.Write());
+}
+
 void Guild::SendEventBankMoneyChanged() const
 {
     WorldPackets::Guild::GuildEventBankMoneyChanged eventPacket;
@@ -2475,7 +2497,7 @@ void Guild::LoadBankTabFromDB(Field* fields)
 
 bool Guild::LoadBankItemFromDB(Field* fields)
 {
-    uint8 tabId = fields[45].GetUInt8();
+    uint8 tabId = fields[44].GetUInt8();
     if (tabId >= _GetPurchasedTabsSize())
     {
         TC_LOG_ERROR("guild", "Invalid tab for item (GUID: %u, id: #%u) in guild bank, skipped.",
@@ -3401,7 +3423,7 @@ void Guild::SendBankList(WorldSession* session, uint8 tabId, bool fullUpdate) co
                     itemInfo.Charges = int32(abs(tabItem->GetSpellCharges()));
                     itemInfo.EnchantmentID = int32(tabItem->GetEnchantmentId(PERM_ENCHANTMENT_SLOT));
                     itemInfo.OnUseEnchantmentID = int32(tabItem->GetEnchantmentId(USE_ENCHANTMENT_SLOT));
-                    itemInfo.Flags = 0;
+                    itemInfo.Flags = tabItem->m_itemData->DynamicFlags;
 
                     uint8 i = 0;
                     for (UF::SocketedGem const& gemData : tabItem->m_itemData->Gems)

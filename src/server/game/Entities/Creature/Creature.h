@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -193,7 +192,7 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
         ScriptParam GetScriptParam(uint8 index) const;
 
         // override WorldObject function for proper name localization
-        std::string const& GetNameForLocaleIdx(LocaleConstant locale_idx) const override;
+        std::string GetNameForLocaleIdx(LocaleConstant locale) const override;
 
         void setDeathState(DeathState s) override;                   // override virtual Unit::setDeathState
 

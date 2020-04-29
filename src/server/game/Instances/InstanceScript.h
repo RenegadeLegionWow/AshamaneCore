@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +26,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 
 #define OUT_SAVE_INST_DATA             TC_LOG_DEBUG("scripts", "Saving Instance Data for Instance %s (Map %d, Instance Id %d)", instance->GetMapName(), instance->GetId(), instance->GetInstanceId())
 #define OUT_SAVE_INST_DATA_COMPLETE    TC_LOG_DEBUG("scripts", "Saving Instance Data for Instance %s (Map %d, Instance Id %d) completed.", instance->GetMapName(), instance->GetId(), instance->GetInstanceId())
@@ -282,10 +282,16 @@ class TC_GAME_API InstanceScript : public ZoneScript
         // Add aura on all players in instance
         void DoAddAuraOnPlayers(uint32 spell);
 
+        // Do combat stop on all players in instance
+        void DoCombatStopOnPlayers();
+
         // Start movie for all players in instance
         void DoStartMovie(uint32 movieId);
 
         void DoPlayConversation(uint32 conversationId);
+        void DoDelayedConversation(uint32 delay, uint32 conversationId);
+
+        void DoAddItemByClassOnPlayers(uint8 classId, uint32 itemId, uint32 count);
 
         void DoSendScenarioEvent(uint32 eventId);
 

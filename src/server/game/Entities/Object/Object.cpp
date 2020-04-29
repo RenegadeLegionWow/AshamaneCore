@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -243,10 +242,7 @@ void Object::SendUpdateToPlayer(Player* player)
 
 void Object::BuildValuesUpdateBlockForPlayer(UpdateData* data, Player const* target) const
 {
-    ByteBuffer buf(500);
-
-    buf << uint8(UPDATETYPE_VALUES);
-    buf << GetGUID();
+    ByteBuffer buf = PrepareValuesUpdateBuffer();
 
     BuildValuesUpdate(&buf, target);
 
@@ -255,14 +251,16 @@ void Object::BuildValuesUpdateBlockForPlayer(UpdateData* data, Player const* tar
 
 void Object::BuildValuesUpdateBlockForPlayerWithFlag(UpdateData* data, UF::UpdateFieldFlag flags, Player const* target) const
 {
-    ByteBuffer buf(500);
-
-    buf << uint8(UPDATETYPE_VALUES);
-    buf << GetGUID();
+    ByteBuffer buf = PrepareValuesUpdateBuffer();
 
     BuildValuesUpdateWithFlag(&buf, flags, target);
 
     data->AddUpdateBlock(buf);
+}
+
+void Object::BuildDestroyUpdateBlock(UpdateData* data) const
+{
+    data->AddDestroyObject(GetGUID());
 }
 
 void Object::BuildOutOfRangeUpdateBlock(UpdateData* data) const
@@ -270,12 +268,20 @@ void Object::BuildOutOfRangeUpdateBlock(UpdateData* data) const
     data->AddOutOfRangeGUID(GetGUID());
 }
 
+ByteBuffer Object::PrepareValuesUpdateBuffer() const
+{
+    ByteBuffer buffer(500);
+    buffer << uint8(UPDATETYPE_VALUES);
+    buffer << GetGUID();
+    return buffer;
+}
+
 void Object::DestroyForPlayer(Player* target) const
 {
     ASSERT(target);
 
     UpdateData updateData(target->GetMapId());
-    BuildOutOfRangeUpdateBlock(&updateData);
+    BuildDestroyUpdateBlock(&updateData);
     WorldPacket packet;
     updateData.BuildPacket(&packet);
     target->SendDirectMessage(&packet);
@@ -372,15 +378,23 @@ void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const
         *data << float(unit->GetSpeed(MOVE_TURN_RATE));
         *data << float(unit->GetSpeed(MOVE_PITCH_RATE));
 
-        *data << uint32(unit->GetMovementForces().size());
-
-        *data << float(1.0f);                                           // MovementForcesModMagnitude
+        if (MovementForces const* movementForces = unit->GetMovementForces())
+        {
+            *data << uint32(movementForces->GetForces()->size());
+            *data << float(movementForces->GetModMagnitude());          // MovementForcesModMagnitude
+        }
+        else
+        {
+            *data << uint32(0);
+            *data << float(1.0f);                                       // MovementForcesModMagnitude
+        }
 
         data->WriteBit(HasSpline);
         data->FlushBits();
 
-        for (auto const& itr : unit->GetMovementForces())
-            *data << itr.second;
+        if (MovementForces const* movementForces = unit->GetMovementForces())
+            for (MovementForce const& force : *movementForces->GetForces())
+                WorldPackets::Movement::CommonMovement::WriteMovementForceWithDirection(force, *data, unit);
 
         if (HasSpline)
             WorldPackets::Movement::CommonMovement::WriteCreateObjectSplineDataBlock(*unit->movespline, *data);
@@ -1785,22 +1799,22 @@ TempSummon* Map::SummonCreature(uint32 entry, Position const& pos, SummonPropert
             case SUMMON_CATEGORY_ALLY:
             case SUMMON_CATEGORY_UNK:
             {
-                switch (properties->Title)
+                switch (SummonTitle(properties->Title))
                 {
-                case SUMMON_TYPE_MINION:
-                case SUMMON_TYPE_GUARDIAN:
-                case SUMMON_TYPE_GUARDIAN2:
+                case SummonTitle::Minion:
+                case SummonTitle::Guardian:
+                case SummonTitle::Runeblade:
                     mask = UNIT_MASK_GUARDIAN;
                     break;
-                case SUMMON_TYPE_TOTEM:
-                case SUMMON_TYPE_LIGHTWELL:
+                case SummonTitle::Totem:
+                case SummonTitle::Lightwell:
                     mask = UNIT_MASK_TOTEM;
                     break;
-                case SUMMON_TYPE_VEHICLE:
-                case SUMMON_TYPE_VEHICLE2:
+                case SummonTitle::Vehicle:
+                case SummonTitle::Mount:
                     mask = UNIT_MASK_SUMMON;
                     break;
-                case SUMMON_TYPE_MINIPET:
+                case SummonTitle::Companion:
                     mask = UNIT_MASK_MINION;
                     break;
                 default:

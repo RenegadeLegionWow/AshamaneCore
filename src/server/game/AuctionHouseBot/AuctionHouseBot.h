@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -230,17 +230,18 @@ public:
 
     uint32 GetItemPerCycleBoost() const { return _itemsPerCycleBoost; }
     uint32 GetItemPerCycleNormal() const { return _itemsPerCycleNormal; }
-    ObjectGuid::LowType GetRandChar() const;
-    ObjectGuid::LowType GetRandCharExclude(ObjectGuid::LowType exclude) const;
-    bool IsBotChar(ObjectGuid::LowType characterID) const;
+    ObjectGuid GetRandChar() const;
+    ObjectGuid GetRandCharExclude(ObjectGuid exclude) const;
+    bool IsBotChar(ObjectGuid characterID) const;
     void Reload() { GetConfigFromFile(); }
 
+    uint32 GetAuctionHouseId(AuctionHouseType houseType) const;
     static char const* GetHouseTypeName(AuctionHouseType houseType);
 
 private:
     std::string _AHBotIncludes;
     std::string _AHBotExcludes;
-    std::vector<ObjectGuid::LowType> _AHBotCharacters;
+    std::vector<ObjectGuid> _AHBotCharacters;
     uint32 _itemsPerCycleBoost;
     uint32 _itemsPerCycleNormal;
 

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -36,7 +35,7 @@
 #include <sstream>
 #include <cwctype>
 
-Channel::Channel(uint32 channelId, uint32 team /*= 0*/, AreaTableEntry const* zoneEntry /*= nullptr*/) :
+Channel::Channel(ObjectGuid const& guid, uint32 channelId, uint32 team /*= 0*/, AreaTableEntry const* zoneEntry /*= nullptr*/) :
     _announceEnabled(false),                                               // no join/leave announces
     _ownershipEnabled(false),                                              // no ownership handout
     _persistentChannel(false),
@@ -44,6 +43,7 @@ Channel::Channel(uint32 channelId, uint32 team /*= 0*/, AreaTableEntry const* zo
     _channelFlags(CHANNEL_FLAG_GENERAL),                                   // for all built-in channels
     _channelId(channelId),
     _channelTeam(team),
+    _channelGuid(guid),
     _zoneEntry(zoneEntry)
 {
     ChatChannelsEntry const* channelEntry = sChatChannelsStore.AssertEntry(channelId);
@@ -59,7 +59,7 @@ Channel::Channel(uint32 channelId, uint32 team /*= 0*/, AreaTableEntry const* zo
         _channelFlags |= CHANNEL_FLAG_NOT_LFG;
 }
 
-Channel::Channel(std::string const& name, uint32 team /*= 0*/) :
+Channel::Channel(ObjectGuid const& guid, std::string const& name, uint32 team /*= 0*/) :
     _announceEnabled(true),
     _ownershipEnabled(true),
     _persistentChannel(false),
@@ -67,6 +67,7 @@ Channel::Channel(std::string const& name, uint32 team /*= 0*/) :
     _channelFlags(CHANNEL_FLAG_CUSTOM),
     _channelId(0),
     _channelTeam(team),
+    _channelGuid(guid),
     _channelName(name),
     _zoneEntry(nullptr)
 {
@@ -90,7 +91,8 @@ Channel::Channel(std::string const& name, uint32 team /*= 0*/) :
                 Tokenizer tokens(bannedList, ' ');
                 for (auto const& token : tokens)
                 {
-                    std::string bannedGuidStr(token);
+                    // legacy db content might not have 0x prefix, account for that
+                    std::string bannedGuidStr(memcmp(token, "0x", 2) ? token + 2 : token);
                     ObjectGuid bannedGuid;
                     bannedGuid.SetRawValue(uint64(strtoull(bannedGuidStr.substr(0, 16).c_str(), nullptr, 16)), uint64(strtoull(bannedGuidStr.substr(16).c_str(), nullptr, 16)));
                     if (!bannedGuid.IsEmpty())
@@ -145,7 +147,7 @@ void Channel::UpdateChannelInDB() const
     {
         std::ostringstream banlist;
         for (ObjectGuid const& guid : _bannedStore)
-            banlist << guid << ' ';
+            banlist << guid.ToHexString() << ' ';
 
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHANNEL);
         stmt->setBool(0, _announceEnabled);
@@ -269,6 +271,7 @@ void Channel::JoinChannel(Player* player, std::string const& pass)
         //notify->InstanceID = 0;
         notify->_ChannelFlags = _channelFlags;
         notify->_Channel = GetName(localeIdx);
+        notify->ChannelGUID = _channelGuid;
         return notify;
     };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,7 @@
 #include "Implementation/CharacterDatabase.h"
 #include "Implementation/HotfixDatabase.h"
 #include "Log.h"
+#include "MySQLPreparedStatement.h"
 #include "PreparedStatement.h"
 #include "ProducerConsumerQueue.h"
 #include "QueryCallback.h"
@@ -31,10 +32,7 @@
 #include "QueryResult.h"
 #include "SQLOperation.h"
 #include "Transaction.h"
-#ifdef _WIN32 // hack for broken mysql.h not including the correct winsock header for SOCKET definition, fixed in 5.7
-#include <winsock2.h>
-#endif
-#include <mysql.h>
+#include "MySQLWorkaround.h"
 #include <mysqld_error.h>
 
 #define MIN_MYSQL_SERVER_VERSION 50100u
@@ -264,6 +262,32 @@ void DatabaseWorkerPool<T>::CommitTransaction(SQLTransaction<T> transaction)
 }
 
 template <class T>
+TransactionCallback DatabaseWorkerPool<T>::AsyncCommitTransaction(SQLTransaction<T> transaction)
+{
+#ifdef TRINITY_DEBUG
+    //! Only analyze transaction weaknesses in Debug mode.
+    //! Ideally we catch the faults in Debug mode and then correct them,
+    //! so there's no need to waste these CPU cycles in Release mode.
+    switch (transaction->GetSize())
+    {
+        case 0:
+            TC_LOG_DEBUG("sql.driver", "Transaction contains 0 queries. Not executing.");
+            return;
+        case 1:
+            TC_LOG_DEBUG("sql.driver", "Warning: Transaction only holds 1 query, consider removing Transaction context in code.");
+            break;
+        default:
+            break;
+    }
+#endif // TRINITY_DEBUG
+
+    TransactionWithResultTask* task = new TransactionWithResultTask(transaction);
+    TransactionFuture result = task->GetFuture();
+    Enqueue(task);
+    return TransactionCallback(std::move(result));
+}
+
+template <class T>
 void DatabaseWorkerPool<T>::DirectCommitTransaction(SQLTransaction<T>& transaction)
 {
     T* connection = GetFreeConnection();
@@ -355,7 +379,7 @@ uint32 DatabaseWorkerPool<T>::OpenConnections(InternalIndex type, uint8 numConne
             _connections[type].clear();
             return error;
         }
-        else if (mysql_get_server_version(connection->GetHandle()) < MIN_MYSQL_SERVER_VERSION)
+        else if (connection->GetServerVersion() < MIN_MYSQL_SERVER_VERSION)
         {
             TC_LOG_ERROR("sql.driver", "TrinityCore does not support MySQL versions below 5.1");
             return 1;
@@ -376,8 +400,7 @@ unsigned long DatabaseWorkerPool<T>::EscapeString(char *to, const char *from, un
     if (!to || !from || !length)
         return 0;
 
-    return mysql_real_escape_string(
-        _connections[IDX_SYNCH].front()->GetHandle(), to, from, length);
+    return _connections[IDX_SYNCH].front()->EscapeString(to, from, length);
 }
 
 template <class T>

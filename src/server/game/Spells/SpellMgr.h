@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +23,7 @@
 #include "Define.h"
 #include "Duration.h"
 #include "IteratorPair.h"
+#include "RaceMask.h"
 #include "SharedDefines.h"
 #include "Util.h"
 
@@ -36,6 +36,7 @@ class SpellInfo;
 class Player;
 class Unit;
 class ProcEventInfo;
+struct BattlePetSpeciesEntry;
 struct SkillLineAbilityEntry;
 struct SpellAuraOptionsEntry;
 struct SpellAuraRestrictionsEntry;
@@ -476,7 +477,7 @@ struct TC_GAME_API SpellArea
     uint32 questEnd;                                        // quest end (quest must not be rewarded for spell apply)
     int32  auraSpell;                                       // spell aura must be applied for spell apply)if possitive) and it must not be applied in other case
     int8   teamId;                                          // can be applied only to team
-    uint64 raceMask;                                        // can be applied only to races
+    Trinity::RaceMask<uint64> raceMask;                     // can be applied only to races
     Gender gender;                                          // can be applied only to gender
     uint32 questStartStatus;                                // QuestStatus that quest_start must have in order to keep the spell
     uint32 questEndStatus;                                  // QuestStatus that the quest_end must have in order to keep the spell (if the quest_end's status is different than this, the spell will be dropped)
@@ -704,6 +705,8 @@ class TC_GAME_API SpellMgr
 
         uint32 GetModelForTotem(uint32 spellId, uint8 race) const;
 
+        BattlePetSpeciesEntry const* GetBattlePetSpecies(uint32 spellId) const;
+
     private:
         SpellInfo* _GetSpellInfo(uint32 spellId) { return spellId < GetSpellInfoStoreSize() ?  mSpellInfoMap[spellId] : NULL; }
 
@@ -767,6 +770,7 @@ class TC_GAME_API SpellMgr
         PetDefaultSpellsMap        mPetDefaultSpellsMap;           // only spells not listed in related mPetLevelupSpellMap entry
         SpellInfoMap               mSpellInfoMap;
         SpellTotemModelMap         mSpellTotemModel;
+        std::unordered_map<uint32, BattlePetSpeciesEntry const*> mBattlePets;
 };
 
 #define sSpellMgr SpellMgr::instance()

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -46,9 +46,14 @@ class TC_GAME_API AreaTrigger : public WorldObject, public GridObject<AreaTrigge
         AreaTrigger();
         ~AreaTrigger();
 
+    protected:
         void BuildValuesCreate(ByteBuffer* data, Player const* target) const override;
         void BuildValuesUpdate(ByteBuffer* data, Player const* target) const override;
         void ClearUpdateMask(bool remove) override;
+
+    public:
+        void BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
+            UF::AreaTriggerData::Mask const& requestedAreaTriggerMask, Player const* target) const;
 
         void AddToWorld() override;
         void RemoveFromWorld() override;
@@ -72,8 +77,13 @@ class TC_GAME_API AreaTrigger : public WorldObject, public GridObject<AreaTrigge
         uint32 GetSpellId() const { return m_areaTriggerData->SpellID; }
         AuraEffect const* GetAuraEffect() const { return _aurEff; }
         uint32 GetTimeSinceCreated() const { return _timeSinceCreated; }
+
         uint32 GetTimeToTarget() const { return m_areaTriggerData->TimeToTarget; }
+        void SetTimeToTarget(uint32 timeToTarget) { SetUpdateFieldValue(m_values.ModifyValue(&AreaTrigger::m_areaTriggerData).ModifyValue(&UF::AreaTriggerData::TimeToTarget), timeToTarget); }
+
         uint32 GetTimeToTargetScale() const { return m_areaTriggerData->TimeToTargetScale; }
+        void SetTimeToTargetScale(uint32 timeToTargetScale) { SetUpdateFieldValue(m_values.ModifyValue(&AreaTrigger::m_areaTriggerData).ModifyValue(&UF::AreaTriggerData::TimeToTargetScale), timeToTargetScale); }
+
         void UpdateTimeToTarget(uint32 timeToTarget);
         int32 GetDuration() const { return _duration; }
         int32 GetTotalDuration() const { return _totalDuration; }

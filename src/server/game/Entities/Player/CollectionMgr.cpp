@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -851,6 +851,19 @@ std::unordered_set<ObjectGuid> CollectionMgr::GetItemsProvidingTemporaryAppearan
         return temporaryAppearance->second;
 
     return std::unordered_set<ObjectGuid>();
+}
+
+std::unordered_set<uint32> CollectionMgr::GetAppearanceIds() const
+{
+    std::unordered_set<uint32> appearances;
+    std::size_t id = _appearances->find_first();
+    while (id != boost::dynamic_bitset<uint32>::npos)
+    {
+        appearances.insert(sItemModifiedAppearanceStore.AssertEntry(id)->ItemAppearanceID);
+        id = _appearances->find_next(id);
+    }
+
+    return appearances;
 }
 
 void CollectionMgr::SetAppearanceIsFavorite(uint32 itemModifiedAppearanceId, bool apply)

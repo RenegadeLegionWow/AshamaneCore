@@ -48,7 +48,7 @@ public:
         {
             OnEffectHitTarget += SpellEffectFn(spell_barrage_of_leaves_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
         }
-     
+
     };
 
     SpellScript* GetSpellScript() const override
@@ -769,8 +769,7 @@ public:
         void OnUnitEnter(Unit* unit) override
         {
             if (Player* player = unit->ToPlayer())
-                if (!player->HasMovementForce(at->GetGUID()))
-                    player->ApplyMovementForce(at->GetGUID(), 3.0f, directionForce);
+                player->ApplyMovementForce(at->GetGUID(), directionForce, 3.0f, 0);
         }
 
         void OnUnitExit(Unit* unit) override

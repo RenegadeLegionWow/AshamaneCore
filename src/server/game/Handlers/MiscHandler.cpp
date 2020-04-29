@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -87,8 +86,8 @@ void WorldSession::HandleRepopRequest(WorldPackets::Misc::RepopRequest& /*packet
             {
                 Position resurectPosition;
 
-                if (WorldSafeLocsEntry const* entranceLocation = sWorldSafeLocsStore.LookupEntry(instanceScript->GetEntranceLocation()))
-                    resurectPosition.Relocate(entranceLocation->Loc.X, entranceLocation->Loc.Y, entranceLocation->Loc.Z, entranceLocation->Facing);
+                if (WorldSafeLocsEntry const* entranceLocation = sObjectMgr->GetWorldSafeLoc(instanceScript->GetEntranceLocation()))
+                    resurectPosition.Relocate(entranceLocation->Loc);
                 else if (AreaTriggerTeleportStruct const* areaTrigger = sObjectMgr->GetMapEntranceTrigger(GetPlayer()->GetMapId()))
                     resurectPosition.Relocate(areaTrigger->target_X, areaTrigger->target_Y, areaTrigger->target_Z, areaTrigger->target_Orientation);
 
@@ -111,7 +110,7 @@ void WorldSession::HandleWhoOpcode(WorldPackets::Who::WhoRequestPkt& whoRequest)
 
     TC_LOG_DEBUG("network", "WorldSession::HandleWhoOpcode: MinLevel: %u, MaxLevel: %u, Name: %s (VirtualRealmName: %s), Guild: %s (GuildVirtualRealmName: %s), RaceFilter: " UI64FMTD ", ClassFilter: %d, Areas: " SZFMTD ", Words: " SZFMTD ".",
         request.MinLevel, request.MaxLevel, request.Name.c_str(), request.VirtualRealmName.c_str(), request.Guild.c_str(), request.GuildVirtualRealmName.c_str(),
-        request.RaceFilter, request.ClassFilter, whoRequest.Areas.size(), request.Words.size());
+        request.RaceFilter.RawValue, request.ClassFilter, whoRequest.Areas.size(), request.Words.size());
 
     // zones count, client limit = 10 (2.0.10)
     // can't be received from real client or broken packet
@@ -189,7 +188,7 @@ void WorldSession::HandleWhoOpcode(WorldPackets::Who::WhoRequestPkt& whoRequest)
             continue;
 
         // check if race matches racemask
-        if (request.RaceFilter >= 0 && !(request.RaceFilter & (SI64LIT(1) << target.GetRace())))
+        if (!request.RaceFilter.HasRace(target.GetRace()))
             continue;
 
         if (!whoRequest.Areas.empty())
@@ -651,7 +650,7 @@ void WorldSession::HandleCompleteCinematic(WorldPackets::Misc::CompleteCinematic
 void WorldSession::HandleNextCinematicCamera(WorldPackets::Misc::NextCinematicCamera& /*packet*/)
 {
     // Sent by client when cinematic actually begun. So we begin the server side process
-    GetPlayer()->GetCinematicMgr()->BeginCinematic();
+    GetPlayer()->GetCinematicMgr()->NextCinematicCamera();
 }
 
 void WorldSession::HandleCompleteMovie(WorldPackets::Misc::CompleteMovie& /*packet*/)
@@ -780,6 +779,29 @@ void WorldSession::HandleSetTitleOpcode(WorldPackets::Character::SetTitle& packe
         packet.TitleID = 0;
 
     GetPlayer()->SetChosenTitle(packet.TitleID);
+}
+
+void WorldSession::HandleTimeSyncResponse(WorldPackets::Misc::TimeSyncResponse& packet)
+{
+    // Prevent crashing server if queue is empty
+    if (_player->m_timeSyncQueue.empty())
+    {
+        TC_LOG_ERROR("network", "Received CMSG_TIME_SYNC_RESPONSE from player %s without requesting it (hacker?)", _player->GetName().c_str());
+        return;
+    }
+
+    if (packet.SequenceIndex != _player->m_timeSyncQueue.front())
+        TC_LOG_ERROR("network", "Wrong time sync counter from player %s (cheater?)", _player->GetName().c_str());
+
+    TC_LOG_DEBUG("network", "Time sync received: counter %u, client ticks %u, time since last sync %u", packet.SequenceIndex, packet.ClientTime, packet.ClientTime - _player->m_timeSyncClient);
+
+    uint32 ourTicks = packet.ClientTime + (GameTime::GetGameTimeMS() - _player->m_timeSyncServer);
+
+    // diff should be small
+    TC_LOG_DEBUG("network", "Our ticks: %u, diff %u, latency %u", ourTicks, ourTicks - packet.ClientTime, GetLatency());
+
+    _player->m_timeSyncClient = packet.ClientTime;
+    _player->m_timeSyncQueue.pop();
 }
 
 void WorldSession::HandleResetInstancesOpcode(WorldPackets::Instance::ResetInstances& /*packet*/)

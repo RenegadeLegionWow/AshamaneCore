@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * This file is part of the TrinityCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -3363,7 +3362,7 @@ void Unit::DeMorph()
     SetDisplayId(GetNativeDisplayId());
 }
 
-Aura* Unit::_TryStackingOrRefreshingExistingAura(SpellInfo const* newAura, uint32 effMask, Unit* caster, int32* baseAmount /*= nullptr*/, Item* castItem /*= nullptr*/, ObjectGuid casterGUID /*= ObjectGuid::Empty*/, bool resetPeriodicTimer /*= true*/, ObjectGuid castItemGuid /*= ObjectGuid::Empty*/, int32 castItemLevel /*= -1*/)
+Aura* Unit::_TryStackingOrRefreshingExistingAura(SpellInfo const* newAura, uint32 effMask, Unit* caster, int32* baseAmount /*= nullptr*/, Item* castItem /*= nullptr*/, ObjectGuid casterGUID /*= ObjectGuid::Empty*/, bool resetPeriodicTimer /*= true*/, ObjectGuid castItemGuid /*= ObjectGuid::Empty*/, uint32 castItemId /*= 0*/, int32 castItemLevel /*= -1*/)
 {
     ASSERT(!casterGUID.IsEmpty() || caster);
 
@@ -3379,9 +3378,15 @@ Aura* Unit::_TryStackingOrRefreshingExistingAura(SpellInfo const* newAura, uint3
         {
             castItemGuid = castItem->GetGUID();
             if (Player* owner = castItem->GetOwner())
+            {
+                castItemId = castItem->GetEntry();
                 castItemLevel = int32(castItem->GetItemLevel(owner));
+            }
             else if (castItem->GetOwnerGUID() == caster->GetGUID())
+            {
+                castItemId = castItem->GetEntry();
                 castItemLevel = int32(castItem->GetItemLevel(caster->ToPlayer()));
+            }
         }
 
         // find current aura from spell and change it's stackamount, or refresh it's duration
@@ -3418,6 +3423,8 @@ Aura* Unit::_TryStackingOrRefreshingExistingAura(SpellInfo const* newAura, uint3
             {
                 ObjectGuid* oldGUID = const_cast<ObjectGuid*>(&foundAura->m_castItemGuid);
                 *oldGUID = castItemGuid;
+                uint32* oldItemId = const_cast<uint32*>(&foundAura->m_castItemId);
+                *oldItemId = castItemId;
                 int32* oldItemLevel = const_cast<int32*>(&foundAura->m_castItemLevel);
                 *oldItemLevel = castItemLevel;
             }
@@ -6411,7 +6418,7 @@ void Unit::SetMinion(Minion *minion, bool apply)
                 SetMinionGUID(minion->GetGUID());
         }
 
-        if (minion->m_Properties && minion->m_Properties->Title == SUMMON_TYPE_MINIPET)
+        if (minion->m_Properties && SummonTitle(minion->m_Properties->Title) == SummonTitle::Companion)
         {
             SetCritterGUID(minion->GetGUID());
             if (Player const* thisPlayer = ToPlayer())
@@ -6442,7 +6449,7 @@ void Unit::SetMinion(Minion *minion, bool apply)
 
         m_Controlled.erase(minion);
 
-        if (minion->m_Properties && minion->m_Properties->Title == SUMMON_TYPE_MINIPET)
+        if (minion->m_Properties && SummonTitle(minion->m_Properties->Title) == SummonTitle::Companion)
             if (GetCritterGUID() == minion->GetGUID())
                 SetCritterGUID(ObjectGuid::Empty);
 
@@ -9435,13 +9442,13 @@ float Unit::ApplyEffectModifiers(SpellInfo const* spellProto, uint8 effect_index
 }
 
 // function uses real base points (typically value - 1)
-int32 Unit::CalculateSpellDamage(Unit const* target, SpellInfo const* spellProto, uint8 effect_index, int32 const* basePoints /*= nullptr*/, float* variance /*= nullptr*/, int32 itemLevel /*= -1*/) const
+int32 Unit::CalculateSpellDamage(Unit const* target, SpellInfo const* spellProto, uint8 effect_index, int32 const* basePoints /*= nullptr*/, float* variance /*= nullptr*/, uint32 castItemId /*= 0*/, int32 itemLevel /*= -1*/) const
 {
     SpellEffectInfo const* effect = spellProto->GetEffect(GetMap()->GetDifficultyID(), effect_index);
     if (variance)
         *variance = 0.0f;
 
-    return effect ? effect->CalcValue(this, basePoints, target, variance, itemLevel) : 0;
+    return effect ? effect->CalcValue(this, basePoints, target, variance, castItemId, itemLevel) : 0;
 }
 
 int32 Unit::CalcSpellDuration(SpellInfo const* spellProto)
@@ -13704,11 +13711,11 @@ void Unit::NearTeleportTo(Position const& pos, bool casting /*= false*/)
 
 void Unit::NearTeleportTo(uint32 worldSafeLocId, bool casting /*= false*/)
 {
-    WorldSafeLocsEntry const* safeLoc = sWorldSafeLocsStore.LookupEntry(worldSafeLocId);
+    WorldSafeLocsEntry const* safeLoc = sObjectMgr->GetWorldSafeLoc(worldSafeLocId);
     if (safeLoc == nullptr)
         return;
 
-    NearTeleportTo(safeLoc->Loc.X, safeLoc->Loc.Y, safeLoc->Loc.Z, safeLoc->Facing, casting);
+    NearTeleportTo(safeLoc->Loc.GetPositionX(), safeLoc->Loc.GetPositionY(), safeLoc->Loc.GetPositionZ(), safeLoc->Loc.GetOrientation(), casting);
 }
 
 void Unit::SendTeleportPacket(Position const& pos)
@@ -13718,10 +13725,9 @@ void Unit::SendTeleportPacket(Position const& pos)
 
     WorldPackets::Movement::MoveUpdateTeleport moveUpdateTeleport;
     moveUpdateTeleport.Status = &m_movementInfo;
+    if (_movementForces)
+        moveUpdateTeleport.MovementForces = _movementForces->GetForces();
     Unit* broadcastSource = this;
-
-    for (auto itr : _movementForces)
-        moveUpdateTeleport.MovementForces.push_back(itr.second);
 
     if (Player* playerMover = GetPlayerBeingMoved())
     {
@@ -14505,69 +14511,6 @@ bool Unit::SetCanDoubleJump(bool enable)
     return true;
 }
 
-bool Unit::HasMovementForce(ObjectGuid source)
-{
-    return _movementForces.find(source) != _movementForces.end();
-}
-
-void Unit::ApplyMovementForce(ObjectGuid source, float magnitude, Position direction, Position origin /*= Position()*/)
-{
-    // Can't have two movement force from same source
-    if (HasMovementForce(source))
-        return;
-
-    WorldPackets::Movement::MoveApplyMovementForce moveApplyMovementForce;
-
-    moveApplyMovementForce.MoverGUID = GetGUID();
-    moveApplyMovementForce.SequenceIndex = m_movementCounter++;
-
-    moveApplyMovementForce.Force.ID             = source;
-    moveApplyMovementForce.Force.Magnitude      = magnitude * GetTotalAuraMultiplier(SPELL_AURA_MOD_MOVEMENT_FORCES_SPEED_PCT);
-    moveApplyMovementForce.Force.Origin         = origin;
-    moveApplyMovementForce.Force.Direction      = direction;
-    moveApplyMovementForce.Force.TransportID    = GetTransport() ? GetTransport()->GetEntry() : 0;
-    moveApplyMovementForce.Force.Type           = 1;
-
-    _movementForces[source] = moveApplyMovementForce.Force;
-
-    SendMessageToSet(moveApplyMovementForce.Write(), true);
-}
-
-void Unit::RemoveMovementForce(ObjectGuid source)
-{
-    if (!HasMovementForce(source))
-        return;
-
-    _movementForces.erase(source);
-
-    WorldPackets::Movement::MoveRemoveMovementForce moveRemoveMovementForce;
-    moveRemoveMovementForce.MoverGUID       = GetGUID();
-    moveRemoveMovementForce.SequenceIndex   = m_movementCounter++;
-    moveRemoveMovementForce.ID              = source;
-    SendMessageToSet(moveRemoveMovementForce.Write(), true);
-}
-
-void Unit::RemoveAllMovementForces()
-{
-    // We need to copy the map because RemoveMovementForce method will delete from original map
-    std::unordered_map<ObjectGuid, WorldPackets::Movement::MovementForce> movementForcesCopy = _movementForces;
-
-    for (auto itr: movementForcesCopy)
-        RemoveMovementForce(itr.first);
-}
-
-void Unit::ReApplyAllMovementForces()
-{
-    // We need to copy the map because RemoveMovementForce method will delete from original map
-    std::unordered_map<ObjectGuid, WorldPackets::Movement::MovementForce> movementForcesCopy = _movementForces;
-
-    for (auto itr : movementForcesCopy)
-        RemoveMovementForce(itr.first);
-
-    for (auto itr : movementForcesCopy)
-        ApplyMovementForce(itr.first, itr.second.Magnitude, itr.second.Direction, itr.second.Origin);
-}
-
 void Unit::SendSetVehicleRecId(uint32 vehicleId)
 {
     if (Player* player = ToPlayer())
@@ -14590,6 +14533,149 @@ bool Unit::IsInAir()
     float ground = GetMap()->GetHeight(GetPhaseShift(), GetPositionX(), GetPositionY(), GetPositionZMinusOffset());
 
     return G3D::fuzzyGt(GetPositionZMinusOffset(), ground + 0.05f) || G3D::fuzzyLt(GetPositionZMinusOffset(), ground - 0.05f);
+}
+
+void Unit::ApplyMovementForce(ObjectGuid id, Position origin, float magnitude, uint8 type, Position direction /*= {}*/, ObjectGuid transportGuid /*= ObjectGuid::Empty*/)
+{
+    if (!_movementForces)
+        _movementForces = Trinity::make_unique<MovementForces>();
+
+    MovementForce force;
+    force.ID = id;
+    force.Origin = origin;
+    force.Direction = direction;
+    if (transportGuid.IsMOTransport())
+        force.TransportID = transportGuid.GetCounter();
+
+    force.Magnitude = magnitude;
+    force.Type = type;
+
+    if (_movementForces->Add(force))
+    {
+        if (Player const* movingPlayer = GetPlayerMovingMe())
+        {
+            WorldPackets::Movement::MoveApplyMovementForce applyMovementForce;
+            applyMovementForce.MoverGUID = GetGUID();
+            applyMovementForce.SequenceIndex = m_movementCounter++;
+            applyMovementForce.Force = &force;
+            movingPlayer->SendDirectMessage(applyMovementForce.Write());
+        }
+        else
+        {
+            WorldPackets::Movement::MoveUpdateApplyMovementForce updateApplyMovementForce;
+            updateApplyMovementForce.Status = &m_movementInfo;
+            updateApplyMovementForce.Force = &force;
+            SendMessageToSet(updateApplyMovementForce.Write(), true);
+        }
+    }
+}
+
+void Unit::RemoveMovementForce(ObjectGuid id)
+{
+    if (!_movementForces)
+        return;
+
+    if (_movementForces->Remove(id))
+    {
+        if (Player const* movingPlayer = GetPlayerMovingMe())
+        {
+            WorldPackets::Movement::MoveRemoveMovementForce moveRemoveMovementForce;
+            moveRemoveMovementForce.MoverGUID = GetGUID();
+            moveRemoveMovementForce.SequenceIndex = m_movementCounter++;
+            moveRemoveMovementForce.ID = id;
+            movingPlayer->SendDirectMessage(moveRemoveMovementForce.Write());
+        }
+        else
+        {
+            WorldPackets::Movement::MoveUpdateRemoveMovementForce updateRemoveMovementForce;
+            updateRemoveMovementForce.Status = &m_movementInfo;
+            updateRemoveMovementForce.TriggerGUID = id;
+            SendMessageToSet(updateRemoveMovementForce.Write(), true);
+        }
+    }
+
+    if (_movementForces->IsEmpty())
+        _movementForces.reset();
+}
+
+void Unit::RemoveAllMovementForces()
+{
+    if (!_movementForces)
+        return;
+
+    std::vector<ObjectGuid> toRemoveIds = std::vector<ObjectGuid>();
+
+    for (auto force : *_movementForces.get()->GetForces())
+        toRemoveIds.push_back(force.ID);
+
+    for (ObjectGuid Id : toRemoveIds)
+        RemoveMovementForce(Id);
+
+    if (_movementForces->IsEmpty())
+        _movementForces.reset();
+}
+
+bool Unit::SetIgnoreMovementForces(bool ignore)
+{
+    if (ignore == HasExtraUnitMovementFlag(MOVEMENTFLAG2_IGNORE_MOVEMENT_FORCES))
+        return false;
+
+    if (ignore)
+        AddExtraUnitMovementFlag(MOVEMENTFLAG2_IGNORE_MOVEMENT_FORCES);
+    else
+        RemoveExtraUnitMovementFlag(MOVEMENTFLAG2_IGNORE_MOVEMENT_FORCES);
+
+    static OpcodeServer const ignoreMovementForcesOpcodeTable[2] =
+    {
+        SMSG_MOVE_UNSET_IGNORE_MOVEMENT_FORCES,
+        SMSG_MOVE_SET_IGNORE_MOVEMENT_FORCES
+    };
+
+    if (Player const* movingPlayer = GetPlayerMovingMe())
+    {
+        WorldPackets::Movement::MoveSetFlag packet(ignoreMovementForcesOpcodeTable[ignore]);
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = m_movementCounter++;
+        movingPlayer->SendDirectMessage(packet.Write());
+
+        WorldPackets::Movement::MoveUpdate moveUpdate;
+        moveUpdate.Status = &m_movementInfo;
+        SendMessageToSet(moveUpdate.Write(), movingPlayer);
+    }
+
+    return true;
+}
+
+void Unit::UpdateMovementForcesModMagnitude()
+{
+    float modMagnitude = GetTotalAuraMultiplier(SPELL_AURA_MOD_MOVEMENT_FORCE_MAGNITUDE);
+
+    if (Player* movingPlayer = GetPlayerMovingMe())
+    {
+        WorldPackets::Movement::MoveSetSpeed setModMovementForceMagnitude(SMSG_MOVE_SET_MOD_MOVEMENT_FORCE_MAGNITUDE);
+        setModMovementForceMagnitude.MoverGUID = GetGUID();
+        setModMovementForceMagnitude.SequenceIndex = m_movementCounter++;
+        setModMovementForceMagnitude.Speed = modMagnitude;
+        movingPlayer->SendDirectMessage(setModMovementForceMagnitude.Write());
+        ++movingPlayer->m_movementForceModMagnitudeChanges;
+    }
+    else
+    {
+        WorldPackets::Movement::MoveUpdateSpeed updateModMovementForceMagnitude(SMSG_MOVE_UPDATE_MOD_MOVEMENT_FORCE_MAGNITUDE);
+        updateModMovementForceMagnitude.Status = &m_movementInfo;
+        updateModMovementForceMagnitude.Speed = modMagnitude;
+        SendMessageToSet(updateModMovementForceMagnitude.Write(), true);
+    }
+
+    if (modMagnitude != 1.0f && !_movementForces)
+        _movementForces = Trinity::make_unique<MovementForces>();
+
+    if (_movementForces)
+    {
+        _movementForces->SetModMagnitude(modMagnitude);
+        if (_movementForces->IsEmpty())
+            _movementForces.reset();
+    }
 }
 
 void Unit::SendSetPlayHoverAnim(bool enable)
@@ -14657,9 +14743,38 @@ void Unit::BuildValuesUpdateWithFlag(ByteBuffer* data, UF::UpdateFieldFlag flags
 
     UF::UnitData::Mask mask;
     m_unitData->AppendAllowedFieldsMaskForFlag(mask, flags);
-    m_unitData->WriteUpdate(*data, mask, flags, this, target);
+    m_unitData->WriteUpdate(*data, mask, true, this, target);
 
     data->put<uint32>(sizePos, data->wpos() - sizePos - 4);
+}
+
+void Unit::BuildValuesUpdateForPlayerWithMask(UpdateData* data, UF::ObjectData::Mask const& requestedObjectMask,
+    UF::UnitData::Mask const& requestedUnitMask, Player const* target) const
+{
+    UF::UpdateFieldFlag flags = GetUpdateFieldFlagsFor(target);
+    UpdateMask<NUM_CLIENT_OBJECT_TYPES> valuesMask;
+    if (requestedObjectMask.IsAnySet())
+        valuesMask.Set(TYPEID_OBJECT);
+
+    UF::UnitData::Mask unitMask = requestedUnitMask;
+    m_unitData->FilterDisallowedFieldsMaskForFlag(unitMask, flags);
+    if (unitMask.IsAnySet())
+        valuesMask.Set(TYPEID_UNIT);
+
+    ByteBuffer buffer = PrepareValuesUpdateBuffer();
+    std::size_t sizePos = buffer.wpos();
+    buffer << uint32(0);
+    buffer << uint32(valuesMask.GetBlock(0));
+
+    if (valuesMask[TYPEID_OBJECT])
+        m_objectData->WriteUpdate(buffer, requestedObjectMask, true, this, target);
+
+    if (valuesMask[TYPEID_UNIT])
+        m_unitData->WriteUpdate(buffer, unitMask, true, this, target);
+
+    buffer.put<uint32>(sizePos, buffer.wpos() - sizePos - 4);
+
+    data->AddUpdateBlock(buffer);
 }
 
 void Unit::DestroyForPlayer(Player* target) const
@@ -14894,12 +15009,24 @@ void Unit::Whisper(uint32 textId, Player* target, bool isBossWhisper /*= false*/
 
 SpellInfo const* Unit::GetCastSpellInfo(SpellInfo const* spellInfo) const
 {
-    Unit::AuraEffectList swaps = GetAuraEffectsByTypes({ SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS, SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS_TRIGGERED });
+    auto findMatchingAuraEffectIn = [this, spellInfo](AuraType type) -> SpellInfo const*
+    {
+        for (AuraEffect const* auraEffect : GetAuraEffectsByType(type))
+        {
+            bool matches = auraEffect->GetMiscValue() ? uint32(auraEffect->GetMiscValue()) == spellInfo->Id : auraEffect->IsAffectingSpell(spellInfo);
+            if (matches)
+                if (SpellInfo const* newInfo = sSpellMgr->GetSpellInfo(auraEffect->GetAmount()))
+                    return newInfo;
+        }
 
-    for (AuraEffect const* auraEffect : swaps)
-        if (uint32(auraEffect->GetMiscValue()) == spellInfo->Id || auraEffect->IsAffectingSpell(spellInfo))
-            if (SpellInfo const* newInfo = sSpellMgr->GetSpellInfo(auraEffect->GetAmount()))
-                return newInfo;
+        return nullptr;
+    };
+
+    if (SpellInfo const* newInfo = findMatchingAuraEffectIn(SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS))
+        return newInfo;
+
+    if (SpellInfo const* newInfo = findMatchingAuraEffectIn(SPELL_AURA_OVERRIDE_ACTIONBAR_SPELLS_TRIGGERED))
+        return newInfo;
 
     return spellInfo;
 }

@@ -31,7 +31,8 @@ class Object;
 class Player;
 
 #define MAIL_BODY_ITEM_TEMPLATE 8383                        // - plain letter, A Dusty Unsent Letter: 889
-#define MAX_MAIL_ITEMS 12
+#define MAX_CLIENT_MAIL_ITEMS 12                            // max number of items a player is allowed to attach
+#define MAX_MAIL_ITEMS 16
 
 enum MailMessageType
 {
@@ -108,7 +109,7 @@ class TC_GAME_API MailSender
 class TC_GAME_API MailReceiver
 {
     public:                                                 // Constructors
-        explicit MailReceiver(ObjectGuid::LowType receiver_lowguid) : m_receiver(NULL), m_receiver_lowguid(receiver_lowguid) { }
+        explicit MailReceiver(ObjectGuid::LowType receiver_lowguid) : m_receiver(nullptr), m_receiver_lowguid(receiver_lowguid) { }
         MailReceiver(Player* receiver);
         MailReceiver(Player* receiver, ObjectGuid::LowType receiver_lowguid);
         MailReceiver(Player* receiver, ObjectGuid receiverGuid);

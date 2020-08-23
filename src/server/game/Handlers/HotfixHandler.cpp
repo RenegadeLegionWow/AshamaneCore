@@ -22,6 +22,7 @@
 #include "HotfixPackets.h"
 #include "Log.h"
 #include "ObjectDefines.h"
+#include "Realm.h"
 #include "World.h"
 
 void WorldSession::HandleDBQueryBulk(WorldPackets::Hotfix::DBQueryBulk& dbQuery)
@@ -48,16 +49,16 @@ void WorldSession::HandleDBQueryBulk(WorldPackets::Hotfix::DBQueryBulk& dbQuery)
         else
         {
             TC_LOG_TRACE("network", "CMSG_DB_QUERY_BULK: %s requested non-existing entry %u in datastore: %u", GetPlayerInfo().c_str(), record.RecordID, dbQuery.TableHash);
-            dbReply.Timestamp = time(NULL);
+            dbReply.Timestamp = time(nullptr);
         }
 
         SendPacket(dbReply.Write());
     }
 }
 
-void WorldSession::SendAvailableHotfixes(int32 version)
+void WorldSession::SendAvailableHotfixes()
 {
-    SendPacket(WorldPackets::Hotfix::AvailableHotfixes(version, sDB2Manager.GetHotfixCount(), sDB2Manager.GetHotfixData()).Write());
+    SendPacket(WorldPackets::Hotfix::AvailableHotfixes(realm.Id.GetAddress(), sDB2Manager.GetHotfixCount(), sDB2Manager.GetHotfixData()).Write());
 }
 
 void WorldSession::HandleHotfixRequest(WorldPackets::Hotfix::HotfixRequest& hotfixQuery)
@@ -65,32 +66,27 @@ void WorldSession::HandleHotfixRequest(WorldPackets::Hotfix::HotfixRequest& hotf
     DB2Manager::HotfixContainer const& hotfixes = sDB2Manager.GetHotfixData();
     WorldPackets::Hotfix::HotfixResponse hotfixQueryResponse;
     hotfixQueryResponse.Hotfixes.reserve(hotfixQuery.Hotfixes.size());
-    for (WorldPackets::Hotfix::HotfixRecord const& hotfixRecord : hotfixQuery.Hotfixes)
+    for (DB2Manager::HotfixRecord const& hotfixRecord : hotfixQuery.Hotfixes)
     {
-        if (auto const* hotfixedRecords = Trinity::Containers::MapGetValuePtr(hotfixes, hotfixRecord.HotfixID))
+        if (hotfixes.find(hotfixRecord) != hotfixes.end())
         {
-            for (auto const& tableRecord : *hotfixedRecords)
+            DB2StorageBase const* storage = sDB2Manager.GetStorage(hotfixRecord.TableHash);
+
+            WorldPackets::Hotfix::HotfixResponse::HotfixData hotfixData;
+            hotfixData.Record = hotfixRecord;
+            if (storage && storage->HasRecord(uint32(hotfixRecord.RecordID)))
             {
-                uint32 hotfixTableHash = tableRecord.first;
-                int32 hotfixRecordId = tableRecord.second;;
-                DB2StorageBase const* storage = sDB2Manager.GetStorage(hotfixTableHash);
-
-                WorldPackets::Hotfix::HotfixResponse::HotfixData hotfixData;
-                hotfixData.Record = hotfixRecord;
-                if (storage && storage->HasRecord(hotfixRecordId))
-                {
-                    std::size_t pos = hotfixQueryResponse.HotfixContent.size();
-                    storage->WriteRecord(hotfixRecordId, GetSessionDbcLocale(), hotfixQueryResponse.HotfixContent);
-                    hotfixData.Size = hotfixQueryResponse.HotfixContent.size() - pos;
-                }
-                else if (std::vector<uint8> const* blobData = sDB2Manager.GetHotfixBlobData(hotfixTableHash, hotfixRecordId))
-                {
-                    hotfixData.Size = blobData->size();
-                    hotfixQueryResponse.HotfixContent.append(blobData->data(), blobData->size());
-                }
-
-                hotfixQueryResponse.Hotfixes.emplace_back(std::move(hotfixData));
+                std::size_t pos = hotfixQueryResponse.HotfixContent.size();
+                storage->WriteRecord(uint32(hotfixRecord.RecordID), GetSessionDbcLocale(), hotfixQueryResponse.HotfixContent);
+                hotfixData.Size = hotfixQueryResponse.HotfixContent.size() - pos;
             }
+            else if (std::vector<uint8> const* blobData = sDB2Manager.GetHotfixBlobData(hotfixRecord.TableHash, hotfixRecord.RecordID, GetSessionDbcLocale()))
+            {
+                hotfixData.Size = blobData->size();
+                hotfixQueryResponse.HotfixContent.append(blobData->data(), blobData->size());
+            }
+
+            hotfixQueryResponse.Hotfixes.emplace_back(std::move(hotfixData));
         }
     }
 

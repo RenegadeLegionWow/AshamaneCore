@@ -39,3 +39,4 @@ log(" https://github.com/AshamaneProject/AshamaneCore        ");
     if (logExtraInfo)
         logExtraInfo();
 }
+

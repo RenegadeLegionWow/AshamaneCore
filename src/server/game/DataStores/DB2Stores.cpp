@@ -2163,7 +2163,7 @@ std::set<uint32> DB2Manager::GetDefaultItemBonusTree(uint32 itemId, ItemContext 
     return GetItemBonusTree(itemId, itemContext, unuseduint);
 }
 
-std::set<uint32> DB2Manager::GetItemBonusTree(uint32 itemId, ItemContext itemContext, uint32& itemLevel) const
+std::set<uint32> DB2Manager::GetItemBonusTree(uint32 itemId, ItemContext itemContext, uint32& /*itemLevel*/) const
 {
     std::set<uint32> bonusListIDs;
 

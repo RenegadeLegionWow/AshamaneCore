@@ -113,7 +113,7 @@ namespace WorldPackets
 
     namespace Battleground
     {
-        struct RatedBattlefieldInfo::BracketInfo;
+        struct BracketInfo;
     }
 }
 
